@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Moobi Koperasi",
+    "slug": "moobi-koperasi-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android", "web"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
