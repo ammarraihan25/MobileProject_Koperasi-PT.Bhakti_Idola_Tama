@@ -29,6 +29,7 @@ export type IconType =
   | 'bell'
   | 'receipt'
   | 'lock'
+  | 'check'
   | 'check-circle'
   | 'chevron-right'
   | 'chevron-left'
@@ -306,7 +307,14 @@ export const AppIcon: React.FC<AppIconProps> = ({
           </Svg>
         );
 
-      // 19. Check Circle
+      // 19. Check & Check Circle
+      case 'check':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Polyline points="20 6 9 17 4 12" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        );
+
       case 'check-circle':
         return (
           <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

@@ -182,7 +182,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 ]}
               >
                 {rememberMe && (
-                  <AppIcon name="check-circle" size={16} color="#1d72db" />
+                  <AppIcon name="check" size={11} color="#ffffff" />
                 )}
               </View>
               <Text style={styles.rememberMeLabel}>Remember me</Text>
