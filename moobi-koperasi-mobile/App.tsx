@@ -18,6 +18,7 @@ import { QrisScreen } from './src/screens/QrisScreen';
 import { RiwayatScreen } from './src/screens/RiwayatScreen';
 import { ProfilScreen } from './src/screens/ProfilScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { SplashScreen } from './src/screens/SplashScreen';
 
 // Full-Page Feature Screens
 import { ProdukElektronikScreen } from './src/screens/features/ProdukElektronikScreen';
@@ -29,6 +30,7 @@ import { PinjamanScreen } from './src/screens/features/PinjamanScreen';
 import { KantinScreen } from './src/screens/features/KantinScreen';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [currentScreen, setCurrentScreen] = useState<ActiveScreenType>('beranda');
   const [currentTab, setCurrentTab] = useState<TabType>('beranda');
@@ -349,6 +351,18 @@ export default function App() {
         return <BerandaScreen onNavigateTab={handleTabChange} />;
     }
   };
+
+  if (showSplash) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#0a101d' }]}>
+        <StatusBar barStyle="light-content" backgroundColor="#0a101d" />
+        <SplashScreen
+          durationSeconds={5}
+          onFinish={() => setShowSplash(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
