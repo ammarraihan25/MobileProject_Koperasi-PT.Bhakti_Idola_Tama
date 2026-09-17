@@ -7,14 +7,13 @@ import {
   Platform,
 } from 'react-native';
 import { colors } from './src/theme/colors';
-import { TabType, ActiveScreenType, BillCategoryType, TransactionItem } from './src/types';
+import { TabType, ActiveScreenType, TransactionItem } from './src/types';
 import { BottomTabBar } from './src/components/BottomTabBar';
-import { mockWallet, mockTransactions } from './src/data/mockData';
+import { mockWallet, mockTransactions, mockUser } from './src/data/mockData';
 
 // Main Tab Screens
 import { BerandaScreen } from './src/screens/BerandaScreen';
 import { KeuanganScreen } from './src/screens/KeuanganScreen';
-import { QrisScreen } from './src/screens/QrisScreen';
 import { RiwayatScreen } from './src/screens/RiwayatScreen';
 import { ProfilScreen } from './src/screens/ProfilScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -22,12 +21,15 @@ import { SplashScreen } from './src/screens/SplashScreen';
 
 // Full-Page Feature Screens
 import { ProdukElektronikScreen } from './src/screens/features/ProdukElektronikScreen';
-import { TransferScreen } from './src/screens/features/TransferScreen';
-import { TarikTunaiScreen } from './src/screens/features/TarikTunaiScreen';
-import { TagihanScreen } from './src/screens/features/TagihanScreen';
 import { PulsaScreen } from './src/screens/features/PulsaScreen';
-import { PinjamanScreen } from './src/screens/features/PinjamanScreen';
+import {
+  PinjamanScreen,
+  SubmittedLoanTicket,
+  ActiveLoanBreakdown,
+} from './src/screens/features/PinjamanScreen';
 import { KantinScreen } from './src/screens/features/KantinScreen';
+import { SimpananWajibScreen } from './src/screens/features/SimpananWajibScreen';
+import { SimpananSukarelaScreen } from './src/screens/features/SimpananSukarelaScreen';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState<boolean>(true);
@@ -35,17 +37,29 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreenType>('beranda');
   const [currentTab, setCurrentTab] = useState<TabType>('beranda');
 
-  // Shared Wallet State
-  const [userBalance, setUserBalance] = useState<number>(mockWallet.saldoUtama);
+  // Shared Wallet State (Simpanan Sukarela is the active balance)
+  const [userBalance, setUserBalance] = useState<number>(mockWallet.simpananSukarela);
   const [userCoins, setUserCoins] = useState<number>(mockWallet.moobiCoins);
   const [walletState, setWalletState] = useState(mockWallet);
 
+  // Shared Loan State (Persisted across screen navigation)
+  const [submittedLoanTicket, setSubmittedLoanTicket] = useState<SubmittedLoanTicket | null>(null);
+  const [activeLoanBreakdown, setActiveLoanBreakdown] = useState<ActiveLoanBreakdown | null>(null);
+
+  // Shared Bill & PPoB Paid Status (Persisted across screen navigation)
+  const [bpjsPaidStatus, setBpjsPaidStatus] = useState<{ kesehatan: boolean; ketenagakerjaan: boolean }>({
+    kesehatan: false,
+    ketenagakerjaan: false,
+  });
+  const [pdamPaidStatus, setPdamPaidStatus] = useState<boolean>(false);
+  const [paidBills, setPaidBills] = useState<string[]>(['internet']);
+
+  // Shared User Avatar (Integrated across Beranda & Profil)
+  const [userAvatarUri, setUserAvatarUri] = useState<string | null>(mockUser.avatarUri || null);
+
   // Shared Transactions State
   const [transactions, setTransactions] = useState<TransactionItem[]>(mockTransactions);
-
-  // Shared Bill / Tagihan State
-  const [paidBills, setPaidBills] = useState<string[]>(['internet']);
-  const [selectedTagihanCategory, setSelectedTagihanCategory] = useState<BillCategoryType>('pln');
+  const [ppobInitialTab, setPpobInitialTab] = useState<'pulsa' | 'token' | 'emoney'>('pulsa');
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -79,9 +93,9 @@ export default function App() {
   // Helper to dynamically record new transactions into shared state
   const recordTransaction = (
     title: string,
-    category: 'kantin' | 'elektronik' | 'ppob' | 'transfer' | 'tarik' | 'simpan_pinjam' | 'payroll' | 'topup',
+    category: 'kantin' | 'elektronik' | 'ppob' | 'simpan_pinjam' | 'payroll' | 'topup',
     amount: number,
-    paymentSource: string = 'Saldo Koperasi',
+    paymentSource: string = 'Simpanan Sukarela',
     description: string = '',
     iconName: string = 'receipt',
     isCredit: boolean = false
@@ -111,27 +125,48 @@ export default function App() {
     setTransactions((prev) => [newTx, ...prev]);
   };
 
-  // Loan Application Handler
+  // Loan Application Handler (Submitted to HR)
   const handleApplyLoan = (amount: number, tenor: number) => {
-    const interest = Math.round(amount * 0.008);
-    const newMonthly = Math.round(amount / tenor) + interest;
-
-    setWalletState((prev) => ({
-      ...prev,
-      pinjamanAktif: prev.pinjamanAktif + amount,
-      angsuranPerBulan: prev.angsuranPerBulan + newMonthly,
-      sisaTenorBulan: tenor,
-      plafonPinjaman: Math.max(0, prev.plafonPinjaman - amount),
-    }));
-
     recordTransaction(
-      'Pencairan Pinjaman Karyawan',
+      'Pengajuan Pinjaman (HR Approval)',
       'simpan_pinjam',
       amount,
-      'Transfer Payroll BCA',
-      `Pengajuan pinjaman dana tunai ${tenor} bulan PT Bakti Idola Tama disetujui`,
-      'pinjaman',
+      'Verifikasi Payroll PT BIT',
+      `Tiket pengajuan pinjaman ${tenor} bulan telah dikirimkan ke HRD untuk persetujuan`,
+      'paylater',
       true
+    );
+  };
+
+  // Loan Repayment Handler
+  const handleRepayLoan = (amount: number) => {
+    setUserBalance((prev) => {
+      const newBal = Math.max(0, prev - amount);
+      setWalletState((w) => {
+        const newPinjaman = Math.max(0, w.pinjamanAktif - amount);
+        const isLunas = newPinjaman === 0;
+        const newTenor = isLunas ? 0 : w.sisaTenorBulan;
+        const newAngsuran = isLunas ? 0 : Math.round(newPinjaman / Math.max(1, newTenor));
+        return {
+          ...w,
+          simpananSukarela: newBal,
+          pinjamanAktif: newPinjaman,
+          angsuranPerBulan: newAngsuran,
+          sisaTenorBulan: newTenor,
+          plafonPinjaman: Math.min(25000000, w.plafonPinjaman + amount),
+        };
+      });
+      return newBal;
+    });
+
+    recordTransaction(
+      'Pembayaran Angsuran Pinjaman',
+      'simpan_pinjam',
+      amount,
+      'Simpanan Sukarela',
+      'Pembayaran / pelunasan cicilan pinjaman PT Bakti Idola Tama',
+      'simpanan',
+      false
     );
   };
 
@@ -143,17 +178,13 @@ export default function App() {
           <BerandaScreen
             userBalance={userBalance}
             userCoins={userCoins}
-            paidBills={paidBills}
-            onNavigateScreen={(screen) => {
-              if (screen === 'tagihan') {
-                setSelectedTagihanCategory('pln');
-              }
-              setCurrentScreen(screen);
-            }}
+            userAvatarUri={userAvatarUri}
+            walletState={walletState}
+            onNavigateScreen={(screen) => setCurrentScreen(screen)}
             onNavigateTab={handleTabChange}
-            onPayBillPress={(cat) => {
-              setSelectedTagihanCategory(cat);
-              setCurrentScreen('tagihan');
+            onOpenPPOB={(tab) => {
+              setPpobInitialTab(tab);
+              setCurrentScreen('pulsa');
             }}
           />
         );
@@ -167,31 +198,9 @@ export default function App() {
             pinjamanAktif={walletState.pinjamanAktif}
             angsuranPerBulan={walletState.angsuranPerBulan}
             sisaTenorBulan={walletState.sisaTenorBulan}
-            simpananPokok={walletState.simpananPokok}
             simpananWajib={walletState.simpananWajib}
-            simpananSukarela={walletState.simpananSukarela}
+            simpananSukarela={userBalance}
             onNavigateScreen={(screen) => setCurrentScreen(screen)}
-            onApplyLoan={handleApplyLoan}
-          />
-        );
-
-      case 'qris':
-        return (
-          <QrisScreen
-            userBalance={userBalance}
-            onPaymentSuccess={(amt, merchantName, category, description) => {
-              setUserBalance((prev) => prev - amt);
-              recordTransaction(
-                merchantName,
-                category,
-                amt,
-                'Saldo Koperasi',
-                description,
-                'qris',
-                false
-              );
-            }}
-            onNavigateHistory={() => handleTabChange('riwayat')}
           />
         );
 
@@ -199,9 +208,19 @@ export default function App() {
         return <RiwayatScreen transactions={transactions} />;
 
       case 'profil':
-        return <ProfilScreen onLogout={() => setIsLoggedIn(false)} />;
+        return (
+          <ProfilScreen
+            userBalance={userBalance}
+            userAvatarUri={userAvatarUri}
+            onUpdateAvatar={setUserAvatarUri}
+            walletState={walletState}
+            onNavigateTab={handleTabChange}
+            onNavigateScreen={(screen) => setCurrentScreen(screen)}
+            onLogout={() => setIsLoggedIn(false)}
+          />
+        );
 
-      // 7 Full-Page Dedicated Feature Screens (No Overlays)
+      // Dedicated Feature Screens
       case 'produk':
         return (
           <ProdukElektronikScreen
@@ -209,86 +228,21 @@ export default function App() {
             userBalance={userBalance}
             onPurchaseSuccess={(totalPrice, itemsCount, paymentMethod, itemsSummary) => {
               if (paymentMethod === 'saldo') {
-                setUserBalance((prev) => prev - totalPrice);
+                setUserBalance((prev) => {
+                  const newBal = Math.max(0, prev - totalPrice);
+                  setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
+                  return newBal;
+                });
               }
               recordTransaction(
                 itemsSummary || `Pembelian Elektronik (${itemsCount} Barang)`,
                 'elektronik',
                 totalPrice,
-                paymentMethod,
-                `Pembelian Produk Elektronik via ${
-                  paymentMethod === 'saldo' ? 'Saldo Koperasi BIT' : 'Potong Gaji Payroll'
+                paymentMethod === 'saldo' ? 'Simpanan Sukarela' : 'Potong Gaji Payroll',
+                `Pembelian Produk Elektronik PT BIT via ${
+                  paymentMethod === 'saldo' ? 'Simpanan Sukarela' : 'Potong Gaji Payroll'
                 }`,
-                'tagihan',
-                false
-              );
-            }}
-          />
-        );
-
-      case 'transfer':
-        return (
-          <TransferScreen
-            onBack={() => setCurrentScreen('beranda')}
-            userBalance={userBalance}
-            onTransferSuccess={(amt, dest) => {
-              setUserBalance((prev) => prev - amt);
-              recordTransaction(
-                `Transfer ke ${dest}`,
-                'transfer',
-                amt,
-                'saldo',
-                `Transfer Saldo Koperasi ke ${dest}`,
-                'transfer',
-                false
-              );
-            }}
-          />
-        );
-
-      case 'tarik':
-        return (
-          <TarikTunaiScreen
-            onBack={() => setCurrentScreen('beranda')}
-            userBalance={userBalance}
-            onWithdrawSuccess={(amt, locationLabel) => {
-              setUserBalance((prev) => prev - amt);
-              recordTransaction(
-                `Tarik Tunai (${locationLabel})`,
-                'tarik',
-                amt,
-                'saldo',
-                `Penarikan tunai tanpa kartu di ${locationLabel}`,
-                'tarik',
-                false
-              );
-            }}
-          />
-        );
-
-      case 'tagihan':
-        return (
-          <TagihanScreen
-            onBack={() => setCurrentScreen('beranda')}
-            userBalance={userBalance}
-            initialCategory={selectedTagihanCategory}
-            paidBills={paidBills}
-            onPaymentSuccess={(amt, catName, catId, paymentSource, customerId) => {
-              if (paymentSource === 'saldo') {
-                setUserBalance((prev) => prev - amt);
-              }
-              if (catId && !paidBills.includes(catId)) {
-                setPaidBills((prev) => [...prev, catId]);
-              }
-              recordTransaction(
-                `Bayar Tagihan ${catName}`,
-                'ppob',
-                amt,
-                paymentSource,
-                `No. Pelanggan: ${customerId} • ${
-                  paymentSource === 'saldo' ? 'Saldo Koperasi' : 'Potong Gaji'
-                }`,
-                'tagihan',
+                'elektronik',
                 false
               );
             }}
@@ -296,19 +250,54 @@ export default function App() {
         );
 
       case 'pulsa':
+      case 'token':
+      case 'emoney':
+      case 'pdam':
+      case 'bpjs':
         return (
           <PulsaScreen
+            mode={currentScreen}
             onBack={() => setCurrentScreen('beranda')}
             userBalance={userBalance}
-            onPurchaseSuccess={(amt, product, operatorName, phoneNumber) => {
-              setUserBalance((prev) => prev - amt);
+            bpjsPaidStatus={bpjsPaidStatus}
+            pdamPaidStatus={pdamPaidStatus}
+            onUpdateBpjsPaidStatus={(type, isPaid) => {
+              setBpjsPaidStatus((prev) => ({ ...prev, [type]: isPaid }));
+              if (type === 'kesehatan') {
+                setPaidBills((prev) => (prev.includes('bpjs') ? prev : [...prev, 'bpjs']));
+              }
+            }}
+            onUpdatePdamPaidStatus={(isPaid) => {
+              setPdamPaidStatus(isPaid);
+              setPaidBills((prev) => (prev.includes('pdam') ? prev : [...prev, 'pdam']));
+            }}
+            onPurchaseSuccess={(amt, product, category, targetNumber) => {
+              setUserBalance((prev) => {
+                const newBal = Math.max(0, prev - amt);
+                setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
+                return newBal;
+              });
+              const getIcon = () => {
+                switch (category) {
+                  case 'token':
+                    return 'zap';
+                  case 'emoney':
+                    return 'topup';
+                  case 'pdam':
+                    return 'pdam';
+                  case 'bpjs':
+                    return 'bpjs';
+                  default:
+                    return 'pulsa';
+                }
+              };
               recordTransaction(
-                `${product} (${operatorName})`,
-                'ppob',
+                `${product}`,
+                category === 'emoney' ? 'topup' : 'ppob',
                 amt,
-                'saldo',
-                `Isi ulang pulsa/kuota no ${phoneNumber}`,
-                'pulsa',
+                'Simpanan Sukarela',
+                `Pembayaran transaksi ${targetNumber}`,
+                getIcon(),
                 false
               );
             }}
@@ -319,11 +308,35 @@ export default function App() {
         return (
           <PinjamanScreen
             onBack={() => setCurrentScreen('beranda')}
+            userBalance={userBalance}
             maxPlafon={walletState.plafonPinjaman}
             pinjamanAktif={walletState.pinjamanAktif}
             angsuranPerBulan={walletState.angsuranPerBulan}
             sisaTenorBulan={walletState.sisaTenorBulan}
+            gajiBulanan={mockUser.gajiBulanan}
+            masaKerjaBulan={mockUser.masaKerjaBulan}
+            submittedTicket={submittedLoanTicket}
+            onSaveSubmittedTicket={setSubmittedLoanTicket}
+            activeLoanBreakdown={activeLoanBreakdown}
+            onSaveActiveLoanBreakdown={setActiveLoanBreakdown}
+            onApproveLoan={(newActiveDebt, newMonthly, newTenor) => {
+              setWalletState((prev) => ({
+                ...prev,
+                pinjamanAktif: newActiveDebt,
+                angsuranPerBulan: newMonthly,
+                sisaTenorBulan: newTenor,
+              }));
+            }}
             onApplySuccess={handleApplyLoan}
+            onRepaySuccess={handleRepayLoan}
+            onNavigateKeuangan={() => {
+              setCurrentTab('keuangan');
+              setCurrentScreen('keuangan');
+            }}
+            onNavigateTopUp={() => {
+              setCurrentTab('keuangan');
+              setCurrentScreen('keuangan');
+            }}
           />
         );
 
@@ -333,13 +346,17 @@ export default function App() {
             onBack={() => setCurrentScreen('beranda')}
             userBalance={userBalance}
             onOrderSuccess={(amt, itemsCount, itemsSummary) => {
-              setUserBalance((prev) => prev - amt);
+              setUserBalance((prev) => {
+                const newBal = Math.max(0, prev - amt);
+                setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
+                return newBal;
+              });
               recordTransaction(
                 itemsSummary || `Kantin BIT (${itemsCount} Menu)`,
                 'kantin',
                 amt,
-                'saldo',
-                `Pesanan Kantin PT BIT - ${itemsCount} menu makanan & minuman`,
+                'Simpanan Sukarela',
+                `Pesanan Kantin PT BIT - ${itemsCount} porsi makanan & minuman`,
                 'food',
                 false
               );
@@ -347,43 +364,54 @@ export default function App() {
           />
         );
 
+      case 'simpanan_wajib':
+        return (
+          <SimpananWajibScreen
+            onBack={() => setCurrentScreen('beranda')}
+            simpananWajib={walletState.simpananWajib}
+          />
+        );
+
+      case 'simpanan_sukarela':
+        return (
+          <SimpananSukarelaScreen
+            onBack={() => setCurrentScreen('beranda')}
+            userBalance={userBalance}
+            transactions={transactions}
+            onNavigateScreen={(screen) => setCurrentScreen(screen)}
+          />
+        );
+
       default:
-        return <BerandaScreen onNavigateTab={handleTabChange} />;
+        return null;
     }
   };
 
+  const isMainTab = ['beranda', 'keuangan', 'riwayat', 'profil'].includes(
+    currentScreen
+  );
+
   if (showSplash) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#ffffff' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        <SplashScreen
-          durationSeconds={5}
-          onFinish={() => setShowSplash(false)}
-        />
-      </SafeAreaView>
-    );
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   if (!isLoggedIn) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#0f172a' }]}>
-        <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <LoginScreen
-          onLoginSuccess={() => {
-            setIsLoggedIn(true);
-            setCurrentScreen('beranda');
-            setCurrentTab('beranda');
-          }}
-        />
-      </SafeAreaView>
-    );
+    return <LoginScreen onLoginSuccess={() => setIsLoggedIn(true)} />;
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1d72db" />
-      <View style={styles.screenContainer}>{renderActiveScreen()}</View>
-      <BottomTabBar currentTab={currentTab} onSelectTab={handleTabChange} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.brandBlue} />
+      <View style={styles.container}>
+        <View style={styles.contentArea}>{renderActiveScreen()}</View>
+
+        {isMainTab && (
+          <BottomTabBar
+            currentTab={currentTab}
+            onSelectTab={handleTabChange}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -391,9 +419,13 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.brandBlue,
   },
-  screenContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  contentArea: {
     flex: 1,
   },
 });

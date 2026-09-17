@@ -8,96 +8,97 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { colors } from '../theme/colors';
-import { TabType, ActiveScreenType, BillCategoryType } from '../types';
+import { LinearGradient } from 'expo-linear-gradient';
+import { TabType, ActiveScreenType } from '../types';
 import { HeaderBalance } from '../components/HeaderBalance';
-import { ReminderCard } from '../components/ReminderCard';
-import { PromoBannerCarousel } from '../components/PromoBannerCarousel';
+import { PlafonPinjamanCard } from '../components/PlafonPinjamanCard';
 import { AppIcon, IconType } from '../components/common/AppIcon';
 import { mockWallet, mockUser } from '../data/mockData';
 
 interface BerandaScreenProps {
   userBalance?: number;
   userCoins?: number;
-  paidBills?: string[];
+  userAvatarUri?: string | null;
+  walletState?: typeof mockWallet;
   onNavigateScreen?: (screen: ActiveScreenType) => void;
   onNavigateTab?: (tab: TabType) => void;
-  onPayBillPress?: (category: BillCategoryType) => void;
+  onOpenPPOB?: (tabName: 'pulsa' | 'token' | 'emoney') => void;
 }
 
 export const BerandaScreen: React.FC<BerandaScreenProps> = ({
-  userBalance = mockWallet.saldoUtama,
+  userBalance = mockWallet.simpananSukarela,
   userCoins = mockWallet.moobiCoins,
-  paidBills = ['internet'],
+  userAvatarUri = null,
+  walletState = mockWallet,
   onNavigateScreen,
   onNavigateTab,
-  onPayBillPress,
+  onOpenPPOB,
 }) => {
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID').format(val);
-  };
-
   const handleGridMenuClick = (id: string, title: string) => {
     switch (id) {
-      case '1': // Produk Elektronik
+      case '1': // Pinjaman Karyawan
+        onNavigateScreen ? onNavigateScreen('pinjaman') : Alert.alert('Pinjaman', 'Membuka Layanan Pinjaman');
+        break;
+      case '2': // Kantin BIT
+        onNavigateScreen ? onNavigateScreen('kantin') : Alert.alert('Kantin', 'Membuka Layanan Kantin');
+        break;
+      case '3': // Produk Elektronik
         onNavigateScreen ? onNavigateScreen('produk') : Alert.alert('Elektronik', 'Membuka Katalog Elektronik');
         break;
-      case '2': // Transfer
-        onNavigateScreen ? onNavigateScreen('transfer') : Alert.alert('Transfer', 'Membuka Layanan Transfer');
+      case '4': // Token Listrik PLN
+        if (onNavigateScreen) {
+          onNavigateScreen('token');
+        } else if (onOpenPPOB) {
+          onOpenPPOB('token');
+        }
         break;
-      case '3': // Riwayat
+      case '5': // Pulsa & Data
+        if (onNavigateScreen) {
+          onNavigateScreen('pulsa');
+        } else if (onOpenPPOB) {
+          onOpenPPOB('pulsa');
+        }
+        break;
+      case '6': // Top Up E-Money
+        if (onNavigateScreen) {
+          onNavigateScreen('emoney');
+        } else if (onOpenPPOB) {
+          onOpenPPOB('emoney');
+        }
+        break;
+      case '7': // Simpanan Sukarela
+        if (onNavigateTab) {
+          onNavigateTab('keuangan');
+        } else if (onNavigateScreen) {
+          onNavigateScreen('keuangan');
+        }
+        break;
+      case '8': // Riwayat
         if (onNavigateTab) {
           onNavigateTab('riwayat');
         } else if (onNavigateScreen) {
           onNavigateScreen('riwayat');
         }
         break;
-      case '4': // Tarik Tunai
-        onNavigateScreen ? onNavigateScreen('tarik') : Alert.alert('Tarik Tunai', 'Membuka Layanan Tarik Tunai');
-        break;
-      case '5': // Tagihan
-        if (onPayBillPress) {
-          onPayBillPress('pln');
-        } else if (onNavigateScreen) {
-          onNavigateScreen('tagihan');
+      case '9': // PDAM Air Bersih
+        if (onNavigateScreen) {
+          onNavigateScreen('pdam');
+        } else {
+          Alert.alert('PDAM', 'Layanan Pembayaran Tagihan PDAM / Air Bersih.');
         }
         break;
-      case '6': // Pulsa
-        onNavigateScreen ? onNavigateScreen('pulsa') : Alert.alert('Pulsa', 'Membuka Layanan Pulsa & Paket Data');
-        break;
-      case '7': // Pinjaman
-        onNavigateScreen ? onNavigateScreen('pinjaman') : Alert.alert('Pinjaman', 'Membuka Layanan Pinjaman');
-        break;
-      case '8': // Kantin
-        onNavigateScreen ? onNavigateScreen('kantin') : Alert.alert('Kantin', 'Membuka Layanan Kantin');
+      case '10': // BPJS Kesehatan & Ketenagakerjaan
+        if (onNavigateScreen) {
+          onNavigateScreen('bpjs');
+        } else {
+          Alert.alert('BPJS', 'Layanan Pembayaran Iuran BPJS Ketenagakerjaan & Kesehatan.');
+        }
         break;
       default:
         break;
     }
   };
 
-  const handleServiceClick = (name: string) => {
-    if (name.includes('Kantin')) {
-      onNavigateScreen?.('kantin');
-    } else if (name.includes('Elektronik') || name.includes('Produk')) {
-      onNavigateScreen?.('produk');
-    } else if (name.includes('Transfer')) {
-      onNavigateScreen?.('transfer');
-    } else if (name.includes('Tarik Tunai') || name.includes('Tarik')) {
-      onNavigateScreen?.('tarik');
-    } else if (name.includes('Pinjaman') || name.includes('PayLater') || name.includes('Bunga Spesial')) {
-      onNavigateScreen?.('pinjaman');
-    } else if (name.includes('Tagihan') || name.includes('PLN') || name.includes('BPJS') || name.includes('PPoB')) {
-      onNavigateScreen?.('tagihan');
-    } else if (name.includes('Pulsa')) {
-      onNavigateScreen?.('pulsa');
-    } else {
-      Alert.alert('Layanan Moobi Koperasi', `Membuka fitur: ${name}\nTerhubung ke sistem PT Bakti Idola Tama.`);
-    }
-  };
-
-  // High-Contrast Solid Vector Icons with Vibrant Accents
   const cleanFeatures: {
     id: string;
     title: string;
@@ -106,117 +107,78 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
     bg: string;
     borderColor: string;
     shadowColor: string;
-    action: string;
   }[] = [
     {
       id: '1',
-      title: 'Elektronik',
-      icon: 'elektronik',
-      color: '#ffffff',
-      bg: '#1d72db',
-      borderColor: '#1462c4',
-      shadowColor: '#1d72db',
-      action: 'Katalog Produk Elektronik BIT',
-    },
-    {
-      id: '2',
-      title: 'Transfer',
-      icon: 'transfer',
-      color: '#ffffff',
-      bg: '#1d72db',
-      borderColor: '#1462c4',
-      shadowColor: '#1d72db',
-      action: 'Transfer ke Bank & Sesama',
-    },
-    {
-      id: '3',
-      title: 'Riwayat',
-      icon: 'riwayat',
-      color: '#ffffff',
-      bg: '#0284c7',
-      borderColor: '#0369a1',
-      shadowColor: '#0284c7',
-      action: 'Riwayat Transaksi',
-    },
-    {
-      id: '4',
-      title: 'Tarik Tunai',
-      icon: 'tarik',
-      color: '#ffffff',
-      bg: '#059669',
-      borderColor: '#047857',
-      shadowColor: '#059669',
-      action: 'Tarik Tunai Koperasi',
-    },
-    {
-      id: '5',
-      title: 'Tagihan',
-      icon: 'tagihan',
-      color: '#ffffff',
-      bg: '#ea580c',
-      borderColor: '#c2410c',
-      shadowColor: '#ea580c',
-      action: 'Bayar Tagihan PLN & BPJS',
-    },
-    {
-      id: '6',
-      title: 'Pulsa',
-      icon: 'pulsa',
-      color: '#ffffff',
-      bg: '#2563eb',
-      borderColor: '#1d4ed8',
-      shadowColor: '#2563eb',
-      action: 'Beli Pulsa & Paket Data',
-    },
-    {
-      id: '7',
       title: 'Pinjaman',
       icon: 'paylater',
       color: '#ffffff',
       bg: '#d97706',
       borderColor: '#b45309',
       shadowColor: '#d97706',
-      action: 'Pinjaman & PayLater Karyawan',
     },
     {
-      id: '8',
-      title: 'Kantin',
+      id: '2',
+      title: 'Kantin BIT',
       icon: 'kantin',
       color: '#ffffff',
       bg: '#16a34a',
       borderColor: '#15803d',
       shadowColor: '#16a34a',
-      action: 'Kantin Digital',
-    },
-  ];
-
-  const transferDestinations = [
-    {
-      id: '1',
-      name: 'Budi S.',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      tag: 'BCA',
-      color: '#1d72db',
-    },
-    {
-      id: '2',
-      name: 'Siti A.',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      tag: 'Moobi',
-      color: '#00aa13',
     },
     {
       id: '3',
-      name: 'Rudi W.',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      tag: 'e-Wallet',
-      color: '#f59e0b',
+      title: 'Elektronik',
+      icon: 'elektronik',
+      color: '#ffffff',
+      bg: '#1d72db',
+      borderColor: '#1462c4',
+      shadowColor: '#1d72db',
     },
     {
       id: '4',
-      name: 'Baru',
-      subTag: '+ Rekening',
-      isAdd: true,
+      title: 'Token PLN',
+      icon: 'zap',
+      color: '#ffffff',
+      bg: '#ea580c',
+      borderColor: '#c2410c',
+      shadowColor: '#ea580c',
+    },
+    {
+      id: '5',
+      title: 'Pulsa & Data',
+      icon: 'pulsa',
+      color: '#ffffff',
+      bg: '#2563eb',
+      borderColor: '#1d4ed8',
+      shadowColor: '#2563eb',
+    },
+    {
+      id: '6',
+      title: 'Top Up E-Money',
+      icon: 'topup',
+      color: '#ffffff',
+      bg: '#059669',
+      borderColor: '#047857',
+      shadowColor: '#059669',
+    },
+    {
+      id: '9',
+      title: 'PDAM',
+      icon: 'pdam',
+      color: '#ffffff',
+      bg: '#0284c7',
+      borderColor: '#0369a1',
+      shadowColor: '#0284c7',
+    },
+    {
+      id: '10',
+      title: 'BPJS',
+      icon: 'bpjs',
+      color: '#ffffff',
+      bg: '#0d9488',
+      borderColor: '#0f766e',
+      shadowColor: '#0d9488',
     },
   ];
 
@@ -225,52 +187,56 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
     title: string;
     desc: string;
     icon: IconType;
-    color: string;
-    cardBg: string;
-    borderColor: string;
     iconBg: string;
-    arrowBg: string;
-    arrowColor: string;
-    action: string;
+    watermarkImage: any;
+    ctaText: string;
+    ctaBg: string;
+    ctaColor: string;
+    cardBorder: string;
+    cardBg: string;
+    actionType: 'pinjaman' | 'kantin' | 'produk';
   }[] = [
     {
       id: '1',
-      title: 'Reward & Cashback PPoB',
-      desc: 'Dapatkan cashback poin reward setiap bayar tagihan, pulsa & token',
-      icon: 'gift',
-      color: '#ffffff',
-      cardBg: '#e8f2fe',
-      borderColor: '#93c5fd',
-      iconBg: '#1d72db',
-      arrowBg: '#dbeafe',
-      arrowColor: '#1d72db',
-      action: 'Promo PPoB & Reward Cashback',
+      title: 'Pinjaman Karyawan & Dana Tunai',
+      desc: 'Pinjaman tanpa agunan hingga Rp 25.000.000 dengan cicilan ringan langsung potong slip gaji.',
+      icon: 'bolt',
+      iconBg: '#d97706',
+      watermarkImage: require('../../assets/page/pinjaman.jpg'),
+      ctaText: 'Ajukan Pinjaman',
+      ctaBg: '#fef3c7',
+      ctaColor: '#92400e',
+      cardBorder: '#fde68a',
+      cardBg: '#fffdfa',
+      actionType: 'pinjaman',
     },
     {
       id: '2',
-      title: 'Diskon Pre-Order Kantin',
-      desc: 'Cashback 10% pesan makan siang sebelum jam 10:00 WIB (Bebas Antre)',
+      title: 'Pre-Order Kantin Tanpa Antre',
+      desc: 'Pesan makanan siang sebelum jam 10:00 WIB, siap dinikmati saat istirahat tanpa antre.',
       icon: 'food',
-      color: '#ffffff',
-      cardBg: '#eaf8ed',
-      borderColor: '#86efac',
       iconBg: '#16a34a',
-      arrowBg: '#dcfce7',
-      arrowColor: '#15803d',
-      action: 'Promo Pre-Order Kantin',
+      watermarkImage: require('../../assets/page/kantin.jpeg'),
+      ctaText: 'Pesan Menu',
+      ctaBg: '#dcfce7',
+      ctaColor: '#15803d',
+      cardBorder: '#bbf7d0',
+      cardBg: '#fafefb',
+      actionType: 'kantin',
     },
     {
       id: '3',
-      title: 'Bunga Spesial Anggota 0.8%',
-      desc: 'Pinjaman modal kerja & darurat bunga flat terpotong payroll otomatis',
-      icon: 'bolt',
-      color: '#ffffff',
-      cardBg: '#fff7ed',
-      borderColor: '#fcd34d',
-      iconBg: '#d97706',
-      arrowBg: '#fef3c7',
-      arrowColor: '#b45309',
-      action: 'Pinjaman Khusus Anggota',
+      title: 'Katalog Produk PT BIT (Miyako, Rinnai, Shimizu)',
+      desc: 'Produk elektronik rumah tangga original garansi resmi dengan cicilan bunga 0% potong payroll.',
+      icon: 'elektronik',
+      iconBg: '#1d72db',
+      watermarkImage: require('../../assets/page/produk.jpg'),
+      ctaText: 'Lihat Katalog',
+      ctaBg: '#dbeafe',
+      ctaColor: '#1d72db',
+      cardBorder: '#bfdbfe',
+      cardBg: '#fafcff',
+      actionType: 'produk',
     },
   ];
 
@@ -280,38 +246,39 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Header Saldo Koperasi & Kantin */}
+      {/* 1. Header Saldo Koperasi (Hanya Simpanan Wajib & Simpanan Sukarela) */}
       <HeaderBalance
         saldo={userBalance}
         moobiCoins={userCoins}
         userName={mockUser.name}
-
+        avatarUri={userAvatarUri}
+        jabatan={mockUser.jabatan}
         department={mockUser.department}
-        shift={mockUser.shift}
-        onTopUpPress={() => onNavigateScreen?.('transfer')}
-        onTarikPress={() => onNavigateScreen?.('tarik')}
-        onTransferPress={() => onNavigateScreen?.('transfer')}
-        onKantinPress={() => onNavigateScreen?.('kantin')}
-        onPinjamanPress={() => onNavigateScreen?.('pinjaman')}
+        masaKerjaBulan={mockUser.masaKerjaBulan}
+        simpananWajib={walletState.simpananWajib}
+        simpananSukarela={userBalance}
+        onAvatarPress={() => onNavigateTab ? onNavigateTab('profil') : onNavigateScreen?.('profil')}
+        onDetailPress={() => onNavigateTab ? onNavigateTab('keuangan') : onNavigateScreen?.('keuangan')}
+        onDetailWajibPress={() => onNavigateScreen ? onNavigateScreen('simpanan_wajib') : onNavigateTab?.('keuangan')}
+        onDetailSukarelaPress={() => onNavigateScreen ? onNavigateScreen('simpanan_sukarela') : onNavigateTab?.('keuangan')}
       />
 
-      {/* 2. Pengingat Tagihan Listrik / Cicilan Terintegrasi */}
-      <ReminderCard
-        paidBills={paidBills}
-        onPayPress={(cat) => {
-          if (onPayBillPress) {
-            onPayBillPress(cat);
-          } else {
-            onNavigateScreen?.('tagihan');
-          }
-        }}
+      {/* 2. Plafon Pinjaman Karyawan (Menggantikan Promo Khusus Karyawan) */}
+      <PlafonPinjamanCard
+        plafonPinjaman={walletState.plafonPinjaman}
+        pinjamanAktif={walletState.pinjamanAktif}
+        angsuranPerBulan={walletState.angsuranPerBulan}
+        sisaTenorBulan={walletState.sisaTenorBulan}
+        onApplyPress={() => onNavigateScreen?.('pinjaman')}
+        onPress={() => onNavigateScreen?.('pinjaman')}
       />
 
-      {/* 4. Auto-Sliding Promo Carousel Khusus Produk PT Bakti Idola Tama (Miyako, Rinnai, Shimizu) */}
-      <PromoBannerCarousel />
-
-      {/* 5. Clean Grid Icon Features */}
+      {/* 3. Grid Icon Fitur Transaksional On-Demand & Koperasi */}
       <View style={styles.gridSection}>
+        <View style={styles.gridHeaderRow}>
+          <Text style={styles.sectionHeading}>Layanan Koperasi & Transaksi</Text>
+        </View>
+
         <View style={styles.cleanGrid}>
           {cleanFeatures.map((item) => (
             <TouchableOpacity
@@ -330,7 +297,7 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
                   },
                 ]}
               >
-                <AppIcon name={item.icon} size={22} color={item.color} />
+                <AppIcon name={item.icon} size={20} color={item.color} />
               </View>
               <Text style={styles.iconLabel} numberOfLines={1}>
                 {item.title}
@@ -340,51 +307,11 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
         </View>
       </View>
 
-      {/* 6. Transfer Cepat (Ke Rekening Bank, e-Wallet, & Kontak) */}
-      <View style={styles.contactsSection}>
-        <View style={styles.transferSectionHeader}>
-          <Text style={styles.sectionHeading}>Transfer</Text>
-          <TouchableOpacity onPress={() => onNavigateScreen?.('transfer')}>
-            <Text style={styles.seeAllTransferText}>Cari Rekening / Bank ›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.transferGridRow}>
-          {transferDestinations.map((c) => (
-            <TouchableOpacity
-              key={c.id}
-              style={styles.contactCard}
-              onPress={() => onNavigateScreen?.('transfer')}
-              activeOpacity={0.75}
-            >
-              {c.isAdd ? (
-                <View style={styles.contactAvatarAdd}>
-                  <AppIcon name="topup" size={18} color="#1d72db" />
-                </View>
-              ) : (
-                <Image
-                  source={{ uri: c.avatar }}
-                  style={styles.contactAvatarImage}
-                />
-              )}
-              <Text style={styles.contactTitle} numberOfLines={1}>
-                {c.name}
-              </Text>
-              <Text style={styles.contactSubTag} numberOfLines={1}>
-                {c.tag || c.subTag || ''}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* 7. Artikel Promo & Penawaran Koperasi */}
+      {/* 4. Artikel & Penawaran Koperasi */}
       <View style={styles.promoSection}>
         <View style={styles.promoSectionHeader}>
-          <Text style={styles.sectionHeading}>Promo & Penawaran</Text>
-          <TouchableOpacity onPress={() => handleServiceClick('Semua Promo & Artikel')}>
-            <Text style={styles.seeAllPromoText}>Lihat Semua ›</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionHeading}>Program & Fasilitas Anggota</Text>
+          <Text style={styles.sectionSubHeading}>Fasilitas khusus karyawan PT Bakti Idola Tama</Text>
         </View>
 
         <View style={styles.promoCardsList}>
@@ -392,41 +319,78 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
             <TouchableOpacity
               key={promo.id}
               style={[
-                styles.promoArticleCard,
+                styles.promoCardWrapper,
                 {
                   backgroundColor: promo.cardBg,
-                  borderColor: promo.borderColor,
+                  borderColor: promo.cardBorder,
                 },
               ]}
-              onPress={() => handleServiceClick(promo.action)}
-              activeOpacity={0.75}
+              onPress={() => onNavigateScreen?.(promo.actionType)}
+              activeOpacity={0.82}
             >
-              <View
-                style={[
-                  styles.promoIconContainer,
-                  {
-                    backgroundColor: promo.iconBg,
-                    borderColor: promo.borderColor,
-                  },
+              {/* Full Card Background Image */}
+              <Image
+                source={promo.watermarkImage}
+                style={styles.promoFullBackgroundImage}
+                resizeMode="cover"
+              />
+
+              {/* Gradient Overlay: Proteksi kontras teks di sisi kiri & transisi halus ke gambar di sisi kanan */}
+              <LinearGradient
+                colors={[
+                  promo.cardBg,
+                  promo.cardBg + 'FA',
+                  promo.cardBg + 'E6',
+                  promo.cardBg + '55',
+                  'transparent',
                 ]}
-              >
-                <AppIcon name={promo.icon} size={22} color={promo.color} />
+                locations={[0, 0.32, 0.56, 0.82, 1.0]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              {/* Top Row: Squircle Icon + Title */}
+              <View style={styles.promoCardTopRow}>
+                <View
+                  style={[
+                    styles.promoIconSquircle,
+                    { backgroundColor: promo.iconBg },
+                  ]}
+                >
+                  <AppIcon name={promo.icon} size={20} color="#ffffff" />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoTitleText} numberOfLines={1}>
+                    {promo.title}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.promoTextContainer}>
-                <Text style={styles.promoArticleTitle} numberOfLines={1}>
-                  {promo.title}
-                </Text>
-                <Text style={styles.promoArticleDesc}>{promo.desc}</Text>
-              </View>
+              {/* Description */}
+              <Text style={styles.promoDescText}>{promo.desc}</Text>
 
-              <View
-                style={[
-                  styles.promoArrowWrapper,
-                  { backgroundColor: promo.arrowBg },
-                ]}
-              >
-                <AppIcon name="chevron-right" size={13} color={promo.arrowColor} />
+              {/* Bottom CTA Action Row */}
+              <View style={styles.promoCardFooterDivider} />
+              <View style={styles.promoCardFooter}>
+                <Text style={styles.promoFooterHint}>Fasilitas Resmi Anggota BIT</Text>
+                <View
+                  style={[
+                    styles.promoCtaButton,
+                    { backgroundColor: promo.ctaBg },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.promoCtaButtonText,
+                      { color: promo.ctaColor },
+                    ]}
+                  >
+                    {promo.ctaText}
+                  </Text>
+                  <AppIcon name="chevron-right" size={11} color={promo.ctaColor} />
+                </View>
               </View>
             </TouchableOpacity>
           ))}
@@ -436,10 +400,10 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       {/* Footer Branding */}
       <View style={styles.footer}>
         <Text style={styles.footerMain}>
-          Ekosistem Koperasi & Kantin PT Bakti Idola Tama
+          Ekosistem Koperasi Karyawan PT Bakti Idola Tama
         </Text>
         <Text style={styles.footerSub}>
-          Didukung oleh Moobi Platform 2026 • Notifikasi WhatsApp Otomatis
+          Terdaftar & Terverifikasi Payroll PT BIT
         </Text>
       </View>
     </ScrollView>
@@ -452,334 +416,177 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   scrollContent: {
-    paddingBottom: 120, // Ample space to prevent bottom navigation bar overlap
-  },
-  sectionHeaderBox: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  ticketBannerContainer: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  ticketBanner: {
-    backgroundColor: '#1d72db',
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#1d72db',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  ticketLeftSection: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  ticketGiftIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  ticketTextCol: {
-    flex: 1,
-  },
-  ticketTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  ticketTagText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#bae6fd',
-    letterSpacing: 0.6,
-  },
-  discountPill: {
-    backgroundColor: '#fef08a',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 5,
-  },
-  discountPillText: {
-    fontSize: 8.5,
-    fontWeight: '700',
-    color: '#854d0e',
-  },
-  ticketText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  ticketDashedLine: {
-    width: 1,
-    height: 28,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    borderStyle: 'dashed',
-    marginHorizontal: 10,
-  },
-  ticketBtn: {
-    backgroundColor: '#ffffff',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  ticketBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#1d72db',
-    letterSpacing: 0.5,
+    paddingBottom: 40,
   },
   gridSection: {
-    marginHorizontal: 16,
-    marginBottom: 14,
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cleanGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  gridCol: {
-    width: '25%',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-    borderWidth: 1.5,
-    position: 'relative',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.22,
-    shadowRadius: 3.5,
-    elevation: 3,
-  },
-  iconText: {
-    fontSize: 20,
-  },
-  iconLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#0f172a',
-    textAlign: 'center',
-    letterSpacing: -0.1,
-  },
-  contactsSection: {
     marginHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 16,
-    backgroundColor: '#ffffff',
+    marginTop: 12,
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
     elevation: 2,
   },
-  transferSectionHeader: {
+  gridHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 12,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  seeAllTransferText: {
-    fontSize: 12,
-    color: '#1d72db',
-    fontWeight: '600',
+  sectionHeading: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
   },
-  transferGridRow: {
+  cleanGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: 8,
-    paddingBottom: 2,
+    rowGap: 12,
   },
-  contactCard: {
+  gridCol: {
+    width: '23%',
     alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 2,
+    marginBottom: 2,
   },
-  contactAvatarImage: {
+  iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e2e8f0',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    marginBottom: 5,
-  },
-  contactAvatarAdd: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1.5,
-    borderColor: '#bfdbfe',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 5,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+    marginBottom: 6,
   },
-  contactTitle: {
-    fontSize: 11.5,
-    color: '#0f172a',
+  iconLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#334155',
     textAlign: 'center',
-    fontWeight: '600',
-  },
-  contactSubTag: {
-    fontSize: 9.5,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 1,
-    fontWeight: '500',
   },
   promoSection: {
     marginHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: 16,
   },
   promoSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 10,
   },
-  promoHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  promoCountBadge: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  promoCountBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#1d72db',
-  },
-  seeAllPromoText: {
-    fontSize: 11.5,
-    color: '#1d72db',
-    fontWeight: '600',
-  },
-  promoCardsList: {
-    gap: 10,
-  },
-  promoArticleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    padding: 13,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  promoIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  promoTextContainer: {
-    flex: 1,
-    marginRight: 8,
-  },
-  promoArticleTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0f172a',
-    letterSpacing: -0.1,
-    marginBottom: 2,
-  },
-  promoArticleDesc: {
-    fontSize: 11,
-    color: '#334155',
-    lineHeight: 15,
+  sectionSubHeading: {
+    fontSize: 10.5,
+    color: '#64748b',
+    marginTop: 2,
     fontWeight: '500',
   },
-  promoArrowWrapper: {
-    width: 26,
-    height: 26,
+  promoCardsList: {
+    gap: 12,
+  },
+  promoCardWrapper: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  promoFullBackgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    opacity: 0.75,
+  },
+  promoCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  promoIconSquircle: {
+    width: 42,
+    height: 42,
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  promoTitleText: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  promoDescText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#1e293b',
+    lineHeight: 16,
+    maxWidth: '82%',
+    marginBottom: 12,
+  },
+  promoCardFooterDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    marginBottom: 8,
+  },
+  promoCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  promoFooterHint: {
+    fontSize: 10,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  promoCtaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 8,
+    borderWidth: 0.8,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  promoCtaButtonText: {
+    fontSize: 10.5,
+    fontWeight: '800',
   },
   footer: {
-    paddingVertical: 20,
+    marginTop: 20,
     alignItems: 'center',
     paddingHorizontal: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
   },
   footerMain: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#64748b',
+    textAlign: 'center',
   },
   footerSub: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: '#94a3b8',
-    marginTop: 3,
     textAlign: 'center',
+    marginTop: 2,
   },
 });

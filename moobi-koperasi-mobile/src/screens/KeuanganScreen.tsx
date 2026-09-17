@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Animated,
-  Modal,
 } from 'react-native';
-import { colors } from '../theme/colors';
 import { AppIcon } from '../components/common/AppIcon';
 import { mockWallet, mockUser } from '../data/mockData';
-import { PinjamanModal } from '../components/modals/PinjamanModal';
 
 interface KeuanganScreenProps {
   userBalance?: number;
@@ -21,88 +17,26 @@ interface KeuanganScreenProps {
   pinjamanAktif?: number;
   angsuranPerBulan?: number;
   sisaTenorBulan?: number;
-  simpananPokok?: number;
   simpananWajib?: number;
   simpananSukarela?: number;
   onNavigateScreen?: (screen: any) => void;
-  onApplyLoan?: (amount: number, tenor: number) => void;
 }
 
 export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
-  userBalance = mockWallet.saldoUtama,
-  userCoins = mockWallet.moobiCoins,
-  plafonPinjaman = mockWallet.plafonPinjaman,
+  userBalance = mockWallet.simpananSukarela,
   pinjamanAktif = mockWallet.pinjamanAktif,
   angsuranPerBulan = mockWallet.angsuranPerBulan,
   sisaTenorBulan = mockWallet.sisaTenorBulan,
-  simpananPokok = mockWallet.simpananPokok,
   simpananWajib = mockWallet.simpananWajib,
-  simpananSukarela = mockWallet.simpananSukarela,
   onNavigateScreen,
-  onApplyLoan,
 }) => {
-  const [loanModalVisible, setLoanModalVisible] = useState(false);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [hideBalance, setHideBalance] = useState(false);
-
-  // Pulse & Fade Animation Refs
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.35,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulseLoop.start();
-    return () => pulseLoop.stop();
-  }, [pulseAnim]);
-
-  const toggleHideBalance = () => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0.2,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start();
-    setHideBalance(!hideBalance);
-  };
-
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID').format(val);
   };
 
-  const totalSimpanan = simpananWajib + simpananSukarela + simpananPokok;
-  const totalAset = userBalance + totalSimpanan;
-
-  // Percentage calculations for Simpanan meter
-  const wajibPercent = Math.round((simpananWajib / totalSimpanan) * 100);
-  const sukarelaPercent = Math.round((simpananSukarela / totalSimpanan) * 100);
-  const pokokPercent = 100 - wajibPercent - sukarelaPercent;
-
-  const handleAction = (title: string) => {
-    Alert.alert(
-      'Layanan Keuangan Koperasi',
-      `Membuka modul: ${title}\nTerhubung ke database PT Bakti Idola Tama.`
-    );
-  };
-
+  const effectiveSukarela = userBalance;
+  // HANYA 2 JENIS SIMPANAN: Wajib + Sukarela
+  const totalSimpanan = simpananWajib + effectiveSukarela;
 
   return (
     <ScrollView
@@ -110,563 +44,220 @@ export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Header Ringkasan Keuangan (Royal Blue Fintech Theme) */}
+      {/* 1. HEADER UTAMA (THEME ROYAL BLUE CLEAN) */}
       <View style={styles.header}>
-        {/* Ambient Geometric Watermarks */}
-        <View style={styles.watermarkCircle1} />
-        <View style={styles.watermarkCircle2} />
+        {/* Background Watermark Geometric Accents */}
+        <View style={styles.watermarkCircle1} pointerEvents="none" />
+        <View style={styles.watermarkCircle2} pointerEvents="none" />
 
-        <View style={styles.headerTop}>
-          <View>
+        <View style={styles.headerTopBar}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerCompanyTitle}>PT. BAKTI IDOLA TAMA</Text>
             <Text style={styles.headerTitle}>Keuangan & Simpan Pinjam</Text>
-            <View style={styles.verifiedRow}>
-              <Animated.View
-                style={[
-                  styles.liveSyncDot,
-                  { transform: [{ scale: pulseAnim }] },
-                ]}
-              />
-              <Text style={styles.headerSub}>
-                PT Bakti Idola Tama • Auto-Debit Payroll Aktif
-              </Text>
-            </View>
           </View>
-        </View>
-
-        {/* Total Aset Summary Card with Eye Toggle & Info Icon Trigger */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryLeft}>
-            <View style={styles.summaryLabelRow}>
-              <Text style={styles.summaryLabel}>Total Saldo & Simpanan</Text>
-              
-              <TouchableOpacity
-                onPress={toggleHideBalance}
-                style={styles.iconActionBtn}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <AppIcon
-                  name={hideBalance ? 'eye-off' : 'eye'}
-                  size={14}
-                  color="#bae6fd"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setDetailModalVisible(true)}
-                style={styles.detailPillBtn}
-                activeOpacity={0.75}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <AppIcon name="info" size={11} color="#ffffff" />
-                <Text style={styles.detailPillText}>Detail</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Main Total Amount */}
-            <Animated.Text
-              style={[
-                styles.summaryAmount,
-                { opacity: fadeAnim },
-              ]}
-            >
-              Rp {hideBalance ? '••••••••' : formatRupiah(totalAset)}
-            </Animated.Text>
-          </View>
-
-          {/* Redesigned + Top Up Pill Button */}
           <TouchableOpacity
-            style={styles.headerTopUpBtn}
-            onPress={() => {
-              if (onNavigateScreen) {
-                onNavigateScreen('transfer');
-              } else {
-                handleAction('Top Up Saldo');
-              }
-            }}
-            activeOpacity={0.85}
+            style={styles.headerInfoBtn}
+            onPress={() =>
+              Alert.alert(
+                'Layanan Keuangan Koperasi',
+                'Halaman ini menyajikan rincian lengkap 2 jenis simpanan (Wajib & Sukarela), angsuran pinjaman berjalan, serta estimasi perolehan SHU tahunan anggota PT BIT.'
+              )
+            }
+            activeOpacity={0.8}
           >
-            <AppIcon name="topup" size={13} color="#1d72db" />
-            <Text style={styles.headerTopUpText}>Top Up</Text>
+            <AppIcon name="info" size={17} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Sumber Dana & Dompet Digital */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Sumber Dana & Dompet</Text>
-          <TouchableOpacity
-            onPress={() => handleAction('Kelola Dompet')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.sectionLink}>Kelola ›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.cardGroup}>
-          {/* Saldo Koperasi */}
-          <TouchableOpacity
-            style={styles.cardItem}
-            onPress={() => {
-              if (onNavigateScreen) {
-                onNavigateScreen('transfer');
-              } else {
-                handleAction('Detail Saldo Koperasi');
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.itemIconBox, { backgroundColor: '#eff6ff' }]}>
-              <AppIcon name="wallet" size={20} color="#1d72db" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>Moobi Saldo Koperasi</Text>
-              <Text style={styles.itemSubtitle}>Dompet Utama Karyawan</Text>
-            </View>
-            <View style={styles.amountCol}>
-              <Animated.Text
-                style={[
-                  styles.itemAmount,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(userBalance)}
-              </Animated.Text>
-              <AppIcon name="chevron-right" size={14} color="#94a3b8" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 3. Buku Simpanan Anggota Koperasi (With Segmented Composition Visualizer) */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Buku Simpanan Anggota (SHU)</Text>
-        </View>
-
-        <View style={styles.cardGroup}>
-          {/* Simpanan Header Total Bar */}
-          <View style={styles.simpananTotalBar}>
-            <View>
-              <Text style={styles.simpananTotalLabel}>Total Simpanan Terkumpul</Text>
-              <Animated.Text
-                style={[
-                  styles.simpananTotalValue,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(totalSimpanan)}
-              </Animated.Text>
-            </View>
-            <View style={styles.shuPillBadge}>
-              <Text style={styles.shuPillText}>Dividen Siap</Text>
-            </View>
-          </View>
-
-          {/* Segmented Composition Meter */}
-          <View style={styles.meterWrapper}>
-            <View style={styles.segmentedBar}>
-              <View style={[styles.segment, { flex: wajibPercent, backgroundColor: '#1d72db' }]} />
-              <View style={[styles.segment, { flex: sukarelaPercent, backgroundColor: '#16a34a' }]} />
-              <View style={[styles.segment, { flex: pokokPercent, backgroundColor: '#64748b' }]} />
-            </View>
-
-            {/* Meter Legend Chips */}
-            <View style={styles.legendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#1d72db' }]} />
-                <Text style={styles.legendText}>Wajib {wajibPercent}%</Text>
+      <View style={styles.bodyContent}>
+        {/* 2. KARTU ANGSURAN PINJAMAN BERJALAN (TERINTEGRASI ANGSURAN) */}
+        {pinjamanAktif > 0 ? (
+          <View style={styles.installmentCard}>
+            <View style={styles.installmentHeaderRow}>
+              <View style={styles.installmentIconWrap}>
+                <AppIcon name="receipt" size={15} color="#ffffff" />
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#16a34a' }]} />
-                <Text style={styles.legendText}>Sukarela {sukarelaPercent}%</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.installmentCardTitle}>Angsuran Pinjaman Berjalan</Text>
+                <Text style={styles.installmentCardSub}>Auto-debit Slip Gaji Tanggal 25</Text>
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#64748b' }]} />
-                <Text style={styles.legendText}>Pokok {pokokPercent}%</Text>
+              <View style={styles.installmentActiveBadge}>
+                <View style={styles.pulseDot} />
+                <Text style={styles.installmentActiveBadgeText}>Aktif Dicicil</Text>
               </View>
             </View>
-          </View>
 
-          <View style={styles.divider} />
-
-          {/* Simpanan Wajib */}
-          <TouchableOpacity
-            style={styles.cardItem}
-            onPress={() => handleAction('Simpanan Wajib')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.itemIconBox, { backgroundColor: '#1d72db' }]}>
-              <AppIcon name="simpanan" size={18} color="#ffffff" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>Simpanan Wajib</Text>
-              <Text style={styles.itemSubtitle}>
-                Auto-debit Payroll Rp 100.000 / bln
-              </Text>
-            </View>
-            <View style={styles.amountCol}>
-              <Animated.Text
-                style={[
-                  styles.itemAmount,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(simpananWajib)}
-              </Animated.Text>
-              <AppIcon name="chevron-right" size={14} color="#94a3b8" />
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Simpanan Sukarela */}
-          <TouchableOpacity
-            style={styles.cardItem}
-            onPress={() => handleAction('Simpanan Sukarela')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.itemIconBox, { backgroundColor: '#16a34a' }]}>
-              <AppIcon name="check-circle" size={18} color="#ffffff" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>Simpanan Sukarela</Text>
-              <Text style={styles.itemSubtitle}>
-                Bagi hasil SHU • Fleksibel ditarik
-              </Text>
-            </View>
-            <View style={styles.amountCol}>
-              <Animated.Text
-                style={[
-                  styles.itemAmount,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(simpananSukarela)}
-              </Animated.Text>
-              <AppIcon name="chevron-right" size={14} color="#94a3b8" />
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Simpanan Pokok */}
-          <TouchableOpacity
-            style={styles.cardItem}
-            onPress={() => handleAction('Simpanan Pokok')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.itemIconBox, { backgroundColor: '#0284c7' }]}>
-              <AppIcon name="lock" size={18} color="#ffffff" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>Simpanan Pokok Awal</Text>
-              <Text style={styles.itemSubtitle}>Status Anggota Tetap Aktif</Text>
-            </View>
-            <View style={styles.amountCol}>
-              <Animated.Text
-                style={[
-                  styles.itemAmount,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(simpananPokok)}
-              </Animated.Text>
-              <AppIcon name="chevron-right" size={14} color="#94a3b8" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 4. Pinjaman Karyawan & Potong Gaji (With Loan Progress Tracker) */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Pinjaman Karyawan Pabrik</Text>
-        </View>
-
-        <View style={styles.cardGroup}>
-          {/* Active Loan Overview with Live Progress */}
-          <View style={styles.activeLoanBox}>
-            <View style={styles.activeLoanTopRow}>
-              <View style={styles.activeStatusPill}>
-                <Animated.View
-                  style={[
-                    styles.activePulseDot,
-                    { transform: [{ scale: pulseAnim }] },
-                  ]}
-                />
-                <Text style={styles.activeStatusText}>Cicilan Berjalan</Text>
-              </View>
-              <Animated.Text
-                style={[
-                  styles.activeLoanAmount,
-                  { opacity: fadeAnim },
-                ]}
-              >
-                Rp {hideBalance ? '••••••••' : formatRupiah(pinjamanAktif)}
-              </Animated.Text>
-            </View>
-
-            {/* Loan Progress Meter */}
-            <View style={styles.loanProgressRow}>
-              <View style={styles.loanProgressBarBg}>
-                <View style={styles.loanProgressBarFill} />
-              </View>
-              <Text style={styles.loanProgressText}>Sisa {sisaTenorBulan}/12 Bln</Text>
-            </View>
-
-            <Text style={styles.activeLoanSub}>
-              Angsuran Rp {formatRupiah(angsuranPerBulan)} / bulan terpotong slip gaji
-            </Text>
-          </View>
-
-          {/* Action CTA Button */}
-          <TouchableOpacity
-            style={styles.pinjamActionPill}
-            onPress={() => {
-              if (onNavigateScreen) {
-                onNavigateScreen('pinjaman');
-              } else {
-                setLoanModalVisible(true);
-              }
-            }}
-            activeOpacity={0.85}
-          >
-            <View style={styles.pinjamActionLeft}>
-              <AppIcon name="bolt" size={16} color="#ffffff" />
-              <Text style={styles.pinjamActionPillText}>
-                Ajukan Pinjaman Cepat (Bunga 0.8%)
-              </Text>
-            </View>
-            <View style={styles.pinjamActionArrowCircle}>
-              <AppIcon name="chevron-right" size={10} color="#00aa13" />
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          {/* Additional Financing */}
-          <TouchableOpacity
-            style={styles.cardItem}
-            onPress={() => handleAction('Pinjaman Agunan BPKB')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.itemIconBox, { backgroundColor: '#d97706' }]}>
-              <AppIcon name="paylater" size={18} color="#ffffff" />
-            </View>
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>Pembiayaan Jaminan BPKB</Text>
-              <Text style={styles.itemSubtitle}>
-                Khusus kendaraan karyawan pabrik
-              </Text>
-            </View>
-            <AppIcon name="chevron-right" size={14} color="#94a3b8" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 5. Rekap Potong Gaji Periode Ini (Digital Pay Slip Card) */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Estimasi Potongan Slip Gaji</Text>
-        </View>
-
-        <View style={styles.payrollCard}>
-          <View style={styles.payrollRow}>
-            <View style={styles.payrollLabelWrapper}>
-              <View style={[styles.payrollDot, { backgroundColor: '#1d72db' }]} />
-              <Text style={styles.payrollLabel}>Angsuran Pinjaman Koperasi</Text>
-            </View>
-            <Text style={styles.payrollVal}>Rp 250.000</Text>
-          </View>
-
-          <View style={styles.payrollRow}>
-            <View style={styles.payrollLabelWrapper}>
-              <View style={[styles.payrollDot, { backgroundColor: '#16a34a' }]} />
-              <Text style={styles.payrollLabel}>Simpanan Wajib Bulanan</Text>
-            </View>
-            <Text style={styles.payrollVal}>Rp 100.000</Text>
-          </View>
-
-          <View style={styles.payrollRow}>
-            <View style={styles.payrollLabelWrapper}>
-              <View style={[styles.payrollDot, { backgroundColor: '#94a3b8' }]} />
-              <Text style={styles.payrollLabel}>Bon Tagihan Kantin Pabrik</Text>
-            </View>
-            <Text style={styles.payrollValFree}>Rp 0 (Lunas Cashless)</Text>
-          </View>
-
-          <View style={styles.dashedDivider} />
-
-          <View style={styles.payrollTotalRow}>
-            <View>
-              <Text style={styles.payrollTotalLabel}>Total Potongan Slip Gaji</Text>
-              <View style={styles.shieldRow}>
-                <AppIcon name="lock" size={10} color="#16a34a" />
-                <Text style={styles.shieldSubText}>Auto-Debet Bebas Biaya Admin</Text>
-              </View>
-            </View>
-            <Animated.Text
-              style={[
-                styles.payrollTotalVal,
-                { opacity: fadeAnim },
-              ]}
-            >
-              Rp {hideBalance ? '••••••••' : formatRupiah(mockWallet.estimasiPotongGajiBulanIni)}
-            </Animated.Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Form Pengajuan Pinjaman Modal */}
-      <PinjamanModal
-        visible={loanModalVisible}
-        onClose={() => setLoanModalVisible(false)}
-        maxPlafon={plafonPinjaman}
-        onApplySuccess={(amt, tenor) => {
-          if (onApplyLoan) {
-            onApplyLoan(amt, tenor);
-          }
-        }}
-      />
-
-      {/* Detail Penjelasan Total Aset & Simpanan Modal */}
-      <Modal
-        visible={detailModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDetailModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.detailModalCard}>
-            {/* Modal Top Header */}
-            <View style={styles.detailModalHeader}>
+            <View style={styles.installmentMainRow}>
               <View>
-                <Text style={styles.detailModalTitle}>Rincian Total Aset Keuangan</Text>
-                <Text style={styles.detailModalSub}>Koperasi Karyawan PT Bakti Idola Tama</Text>
+                <Text style={styles.installmentAmountLabel}>Sisa Pokok Pinjaman:</Text>
+                <Text style={styles.installmentAmountVal}>Rp {formatRupiah(pinjamanAktif)}</Text>
               </View>
               <TouchableOpacity
-                onPress={() => setDetailModalVisible(false)}
-                style={styles.detailModalCloseBtn}
-                activeOpacity={0.7}
+                style={styles.payInstallmentBtn}
+                onPress={() => onNavigateScreen?.('pinjaman')}
+                activeOpacity={0.85}
               >
-                <AppIcon name="x" size={16} color="#64748b" />
+                <Text style={styles.payInstallmentBtnText}>Bayar / Lunasi ›</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.detailModalScroll}>
-              {/* Grand Total Banner */}
-              <View style={styles.detailAsetBanner}>
-                <Text style={styles.detailAsetBannerLabel}>TOTAL SALDO & SIMPANAN ANDA</Text>
-                <Text style={styles.detailAsetBannerVal}>Rp {formatRupiah(totalAset)}</Text>
-                <Text style={styles.detailAsetBannerSub}>
-                  Akumulasi seluruh saldo likuid dan modal simpanan di koperasi
-                </Text>
+            <View style={styles.installmentDetailGrid}>
+              <View style={styles.installmentDetailItem}>
+                <Text style={styles.installmentDetailLabel}>Cicilan Bulanan</Text>
+                <Text style={styles.installmentDetailVal}>Rp {formatRupiah(angsuranPerBulan)} / bln</Text>
               </View>
-
-              {/* Section 1: Saldo Likuid / Siap Pakai */}
-              <View style={styles.detailSectionBox}>
-                <View style={styles.detailSectionHeader}>
-                  <View style={styles.detailSectionTitleWrap}>
-                    <View style={[styles.detailSectionDot, { backgroundColor: '#0284c7' }]} />
-                    <Text style={styles.detailSectionTitle}>1. Saldo Siap Pakai (Likuid)</Text>
-                  </View>
-                  <View style={styles.detailSectionBadgeBlue}>
-                    <Text style={styles.detailSectionBadgeTextBlue}>Bisa Ditarik / Belanja</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailItemRow}>
-                  <View style={styles.detailItemLeft}>
-                    <Text style={styles.detailItemName}>Moobi Saldo Koperasi</Text>
-                    <Text style={styles.detailItemDesc}>
-                      Dapat langsung digunakan untuk belanja Kantin Pabrik BIT, bayar Listrik/BPJS/PDAM/WiFi, beli Produk Elektronik, transfer bank/sesama anggota, atau ditarik tunai tanpa kartu di Kasir/ATM.
-                    </Text>
-                  </View>
-                  <Text style={styles.detailItemValBlue}>Rp {formatRupiah(userBalance)}</Text>
-                </View>
+              <View style={styles.installmentDetailDivider} />
+              <View style={styles.installmentDetailItem}>
+                <Text style={styles.installmentDetailLabel}>Sisa Tenor</Text>
+                <Text style={styles.installmentDetailVal}>{sisaTenorBulan} Bulan</Text>
               </View>
-
-              {/* Section 2: Buku Simpanan Anggota (SHU) */}
-              <View style={styles.detailSectionBox}>
-                <View style={styles.detailSectionHeader}>
-                  <View style={styles.detailSectionTitleWrap}>
-                    <View style={[styles.detailSectionDot, { backgroundColor: '#16a34a' }]} />
-                    <Text style={styles.detailSectionTitle}>2. Buku Simpanan Anggota (SHU)</Text>
-                  </View>
-                  <View style={styles.detailSectionBadgeGreen}>
-                    <Text style={styles.detailSectionBadgeTextGreen}>Aset Bagi Hasil</Text>
-                  </View>
-                </View>
-
-                {/* Simpanan Pokok */}
-                <View style={styles.detailItemRow}>
-                  <View style={styles.detailItemLeft}>
-                    <Text style={styles.detailItemName}>Simpanan Pokok</Text>
-                    <Text style={styles.detailItemDesc}>
-                      Setoran modal awal keanggotaan koperasi (dibayar 1x saat bergabung).
-                    </Text>
-                  </View>
-                  <Text style={styles.detailItemVal}>Rp {formatRupiah(simpananPokok)}</Text>
-                </View>
-
-                <View style={styles.detailInnerDivider} />
-
-                {/* Simpanan Wajib */}
-                <View style={styles.detailItemRow}>
-                  <View style={styles.detailItemLeft}>
-                    <Text style={styles.detailItemName}>Simpanan Wajib Bulanan</Text>
-                    <Text style={styles.detailItemDesc}>
-                      Iuran wajib bulanan terpotong otomatis dari slip gaji (Rp 100.000/bln).
-                    </Text>
-                  </View>
-                  <Text style={styles.detailItemVal}>Rp {formatRupiah(simpananWajib)}</Text>
-                </View>
-
-                <View style={styles.detailInnerDivider} />
-
-                {/* Simpanan Sukarela */}
-                <View style={styles.detailItemRow}>
-                  <View style={styles.detailItemLeft}>
-                    <Text style={styles.detailItemName}>Simpanan Sukarela</Text>
-                    <Text style={styles.detailItemDesc}>
-                      Tabungan sukarela fleksibel anggota dengan bagi hasil dividen kompetitif.
-                    </Text>
-                  </View>
-                  <Text style={styles.detailItemVal}>Rp {formatRupiah(simpananSukarela)}</Text>
-                </View>
-
-                <View style={styles.detailSectionTotalRow}>
-                  <Text style={styles.detailSectionTotalLabel}>Total Simpanan Modal SHU</Text>
-                  <Text style={styles.detailSectionTotalVal}>Rp {formatRupiah(totalSimpanan)}</Text>
-                </View>
+              <View style={styles.installmentDetailDivider} />
+              <View style={styles.installmentDetailItem}>
+                <Text style={styles.installmentDetailLabel}>Jatuh Tempo</Text>
+                <Text style={styles.installmentDetailVal}>25 Sep 2026</Text>
               </View>
-
-              {/* Bonus SHU Note */}
-              <View style={styles.shuBenefitBox}>
-                <AppIcon name="gift" size={16} color="#d97706" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.shuBenefitTitle}>Estimasi Pembagian SHU Tahunan</Text>
-                  <Text style={styles.shuBenefitDesc}>
-                    Semakin besar total simpanan dan keaktifan belanja di koperasi, semakin besar dividen SHU (Sisa Hasil Usaha) yang Anda terima di akhir tahun buku (Estimasi: Rp {formatRupiah(mockWallet.estimasiBagiHasilSHU)}).
-                  </Text>
-                </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.noDebtCard}>
+            <View style={styles.noDebtLeft}>
+              <View style={styles.noDebtIconWrap}>
+                <AppIcon name="check-circle" size={16} color="#ffffff" />
               </View>
-            </ScrollView>
-
-            {/* Bottom Dismiss Button */}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noDebtTitle}>Tidak Ada Angsuran Aktif</Text>
+                <Text style={styles.noDebtSub}>Kewajiban pinjaman Anda saat ini telah lunas</Text>
+              </View>
+            </View>
             <TouchableOpacity
-              style={styles.detailCloseBtn}
-              onPress={() => setDetailModalVisible(false)}
+              style={styles.applyLoanBtn}
+              onPress={() => onNavigateScreen?.('pinjaman')}
               activeOpacity={0.85}
             >
-              <Text style={styles.detailCloseBtnText}>Mengerti & Tutup Rincian</Text>
+              <Text style={styles.applyLoanBtnText}>Ajukan Pinjaman ›</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        )}
 
+        {/* 3. KARTU TOTAL AKUMULASI SIMPANAN (HANYA 2 SIMPANAN: WAJIB & SUKARELA) */}
+        <View style={styles.totalSavingCard}>
+          <View style={styles.totalSavingHeader}>
+            <View style={styles.totalSavingIconCircle}>
+              <AppIcon name="simpanan" size={16} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.totalSavingLabel}>Total Akumulasi Simpanan</Text>
+              <Text style={styles.totalSavingSub}>Simpanan Wajib & Simpanan Sukarela</Text>
+            </View>
+            <View style={styles.savingTypeBadge}>
+              <Text style={styles.savingTypeBadgeText}>2 Jenis Simpanan</Text>
+            </View>
+          </View>
+
+          <Text style={styles.totalSavingAmount}>
+            Rp {formatRupiah(totalSimpanan)}
+          </Text>
+        </View>
+
+        {/* 4. DUA GRID SIMPANAN BERDAMPINGAN (GRID 1: WAJIB & GRID 2: SUKARELA) */}
+        <View style={styles.grid2ColRow}>
+          {/* GRID 1: SIMPANAN WAJIB */}
+          <TouchableOpacity
+            style={styles.gridCardWajib}
+            onPress={() => onNavigateScreen?.('simpanan_wajib')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.gridCardTop}>
+              <View style={styles.savingIconCircleOrange}>
+                <AppIcon name="lock" size={14} color="#ffffff" />
+              </View>
+            </View>
+
+            <Text style={styles.gridCardTitleWajib}>Simpanan Wajib</Text>
+            <Text style={styles.gridCardSubWajib}>Auto-debit Slip Gaji</Text>
+
+            <Text style={styles.gridAmountWajib}>
+              Rp {formatRupiah(simpananWajib)}
+            </Text>
+
+            <View style={styles.gridFooterRow}>
+              <Text style={styles.gridFooterTextWajib}>Rp 100rb/bln</Text>
+              <View style={styles.gridDetailPillWajib}>
+                <Text style={styles.gridDetailPillTextWajib}>Detail ›</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* GRID 2: SIMPANAN SUKARELA */}
+          <TouchableOpacity
+            style={styles.gridCardSukarela}
+            onPress={() => onNavigateScreen?.('simpanan_sukarela')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.gridCardTop}>
+              <View style={styles.savingIconCircleBlue}>
+                <AppIcon name="wallet" size={14} color="#ffffff" />
+              </View>
+            </View>
+
+            <Text style={styles.gridCardTitleSukarela}>Simpanan Sukarela</Text>
+            <Text style={styles.gridCardSubSukarela}>Belanja & Kantin BIT</Text>
+
+            <Text style={styles.gridAmountSukarela}>
+              Rp {formatRupiah(effectiveSukarela)}
+            </Text>
+
+            <View style={styles.gridFooterRow}>
+              <Text style={styles.gridFooterTextSukarela}>Bebas Admin</Text>
+              <View style={styles.gridDetailPillSukarela}>
+                <Text style={styles.gridDetailPillTextSukarela}>Detail ›</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* 5. KARTU ESTIMASI BAGI HASIL SHU TAHUNAN */}
+        <View style={styles.shuCard}>
+          <View style={styles.shuIconCircle}>
+            <AppIcon name="gift" size={16} color="#ffffff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shuLabel}>Estimasi Bagi Hasil SHU Anggota</Text>
+            <Text style={styles.shuValGreen}>Rp {formatRupiah(mockWallet.estimasiBagiHasilSHU)}</Text>
+            <Text style={styles.shuSub}>Dibagikan saat Rapat Anggota Tahunan (RAT) Koperasi</Text>
+          </View>
+        </View>
+
+        {/* 6. KETENTUAN & KEBIJAKAN KEUANGAN KOPERASI */}
+        <View style={styles.infoSummaryCard}>
+          <View style={styles.infoSummaryHeader}>
+            <AppIcon name="check-circle" size={14} color="#1d72db" />
+            <Text style={styles.infoSummaryHeading}>Ketentuan Keuangan Anggota PT BIT</Text>
+          </View>
+
+          <View style={styles.infoList}>
+            <View style={styles.infoItem}>
+              <View style={styles.infoBullet} />
+              <Text style={styles.infoItemText}>
+                <Text style={styles.boldDark}>Simpanan Wajib</Text> dipotong otomatis Rp 100.000 / bulan dari slip gaji setiap tgl 25 dan terkunci minimal 1 tahun masa kerja.
+              </Text>
+            </View>
+            <View style={styles.infoItem}>
+              <View style={styles.infoBullet} />
+              <Text style={styles.infoItemText}>
+                <Text style={styles.boldDark}>Simpanan Sukarela</Text> dapat disetor dan ditarik fleksibel serta digunakan belanja Kantin BIT, elektronik, dan PPoB.
+              </Text>
+            </View>
+            <View style={styles.infoItem}>
+              <View style={styles.infoBullet} />
+              <Text style={styles.infoItemText}>
+                <Text style={styles.boldDark}>Angsuran Pinjaman</Text> dipotong otomatis dari slip gaji bulanan dengan bunga ringan 0.8% flat koperasi.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -677,755 +268,545 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   scrollContent: {
-    paddingBottom: 120, // Prevents bottom tab bar overlap
+    paddingBottom: 90,
   },
+
+  /* 1. Header Styles (Royal Blue Theme Aligned with Beranda) */
   header: {
     backgroundColor: '#1d72db',
+    paddingTop: 12,
+    paddingBottom: 16,
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    marginBottom: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: '#1d72db',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 5,
     position: 'relative',
     overflow: 'hidden',
   },
   watermarkCircle1: {
     position: 'absolute',
-    top: -30,
+    top: -40,
     right: -30,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   watermarkCircle2: {
     position: 'absolute',
-    bottom: -40,
-    left: 80,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    top: 35,
+    left: -40,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  headerTop: {
+  headerTopBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 14,
+  },
+  headerCompanyTitle: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#bae6fd',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 16.5,
+    fontWeight: '900',
     color: '#ffffff',
-    letterSpacing: -0.3,
+    marginTop: 2,
   },
-  verifiedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 3,
-  },
-  liveSyncDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#4ade80',
-  },
-  headerSub: {
-    fontSize: 11.5,
-    color: '#dbeafe',
-    fontWeight: '500',
-  },
-  summaryCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1462c4',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  headerInfoBtn: {
+    width: 36,
+    height: 36,
     borderRadius: 18,
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.8,
     borderColor: 'rgba(255, 255, 255, 0.25)',
-    shadowColor: '#0c4896',
+  },
+
+  /* Body Content Container */
+  bodyContent: {
+    paddingHorizontal: 16,
+    marginTop: 14,
+    gap: 12,
+  },
+
+  /* 2. Installment Card (Angsuran Pinjaman Berjalan) */
+  installmentCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    shadowColor: '#1d72db',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 3,
   },
-  summaryLeft: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  summaryLabelRow: {
+  installmentHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: '#bae6fd',
-    fontWeight: '600',
-  },
-  iconActionBtn: {
-    padding: 2,
-    opacity: 0.9,
-  },
-  detailPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  detailPillText: {
-    fontSize: 10,
-    color: '#ffffff',
-    fontWeight: '600',
-    letterSpacing: 0.1,
-  },
-  summaryAmount: {
-    fontSize: 23,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginTop: 4,
-    letterSpacing: -0.4,
-  },
-  headerTopUpBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ffffff',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  headerTopUpText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#1d72db',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  detailModalCard: {
-    width: '100%',
-    maxWidth: 480,
-    maxHeight: '85%',
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  detailModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 14,
-    paddingBottom: 10,
+    gap: 8,
+    marginBottom: 10,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  detailModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  detailModalSub: {
-    fontSize: 11,
-    color: '#64748b',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  detailModalCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#f1f5f9',
+  installmentIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#1d72db',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  detailModalScroll: {
-    marginBottom: 12,
-  },
-  detailAsetBanner: {
-    backgroundColor: '#1d72db',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    alignItems: 'center',
-  },
-  detailAsetBannerLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#dbeafe',
-    letterSpacing: 0.5,
-  },
-  detailAsetBannerVal: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginVertical: 4,
-    letterSpacing: -0.4,
-  },
-  detailAsetBannerSub: {
-    fontSize: 10.5,
-    color: '#eff6ff',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  detailSectionBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 12,
-    marginBottom: 12,
-  },
-  detailSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  detailSectionTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailSectionDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  detailSectionTitle: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  detailSectionBadgeBlue: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#bfdbfe',
-  },
-  detailSectionBadgeTextBlue: {
-    fontSize: 9.5,
-    color: '#1d72db',
-    fontWeight: '600',
-  },
-  detailSectionBadgeGreen: {
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#bbf7d0',
-  },
-  detailSectionBadgeTextGreen: {
-    fontSize: 9.5,
-    color: '#16a34a',
-    fontWeight: '600',
-  },
-  detailItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  detailItemLeft: {
-    flex: 1,
-  },
-  detailItemName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  detailItemDesc: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
-    lineHeight: 14,
-    fontWeight: '400',
-  },
-  detailItemVal: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  detailItemValBlue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1d72db',
-  },
-  detailInnerDivider: {
-    height: 1,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 6,
-  },
-  detailSectionTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#cbd5e1',
-  },
-  detailSectionTotalLabel: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  detailSectionTotalVal: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#16a34a',
-  },
-  shuBenefitBox: {
-    flexDirection: 'row',
-    backgroundColor: '#fffbeb',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-    padding: 10,
-    gap: 8,
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  shuBenefitTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  shuBenefitDesc: {
-    fontSize: 9.5,
-    color: '#78350f',
-    marginTop: 2,
-    lineHeight: 13.5,
-    fontWeight: '400',
-  },
-  detailCloseBtn: {
-    backgroundColor: '#1d72db',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  detailCloseBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  section: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  sectionLink: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1d72db',
-  },
-  shuBadgeContainer: {
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#bbf7d0',
-  },
-  shuEstimateBadge: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#15803d',
-  },
-  cardGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     shadowColor: '#1d72db',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  simpananTotalBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingVertical: 9,
-    paddingHorizontal: 11,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  simpananTotalLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  simpananTotalValue: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#1d72db',
-    marginTop: 1,
-  },
-  shuPillBadge: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#bfdbfe',
-  },
-  shuPillText: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: '#1d72db',
-  },
-  meterWrapper: {
-    marginBottom: 8,
-  },
-  segmentedBar: {
-    height: 7,
-    flexDirection: 'row',
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: '#f1f5f9',
-    gap: 2,
-  },
-  segment: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-    paddingHorizontal: 2,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  legendDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  legendText: {
-    fontSize: 10,
-    color: '#64748b',
-    fontWeight: '700',
-  },
-  cardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  itemIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
   },
-  itemContent: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+  installmentCardTitle: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#0f172a',
-    letterSpacing: -0.1,
   },
-  itemSubtitle: {
-    fontSize: 11,
+  installmentCardSub: {
+    fontSize: 9,
     color: '#64748b',
     marginTop: 1,
-    fontWeight: '500',
   },
-  amountCol: {
+  installmentActiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  itemAmount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  itemAmountGold: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#b45309',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 4,
-  },
-  plafonPill: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#fde68a',
-  },
-  plafonPillText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#b45309',
-  },
-  activeLoanBox: {
+    gap: 5,
     backgroundColor: '#eff6ff',
-    borderRadius: 13,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  activeLoanTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  activeStatusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 0.8,
     borderColor: '#bfdbfe',
-    gap: 4,
   },
-  activePulseDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#16a34a',
-  },
-  activeStatusText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#16a34a',
-  },
-  activeLoanAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1d72db',
-  },
-  loanProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  loanProgressBarBg: {
-    flex: 1,
+  pulseDot: {
+    width: 6,
     height: 6,
-    backgroundColor: '#dbeafe',
     borderRadius: 3,
-    overflow: 'hidden',
-  },
-  loanProgressBarFill: {
-    width: '16.6%',
-    height: '100%',
     backgroundColor: '#1d72db',
-    borderRadius: 3,
   },
-  loanProgressText: {
-    fontSize: 10,
-    fontWeight: '700',
+  installmentActiveBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
     color: '#1d72db',
   },
-  activeLoanSub: {
-    fontSize: 10.5,
-    color: '#64748b',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  pinjamActionPill: {
+  installmentMainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#00aa13',
-    paddingVertical: 9,
+    alignItems: 'flex-end',
+    marginBottom: 10,
+  },
+  installmentAmountLabel: {
+    fontSize: 9.5,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  installmentAmountVal: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginTop: 1,
+    letterSpacing: -0.3,
+  },
+  payInstallmentBtn: {
+    backgroundColor: '#1d72db',
     paddingHorizontal: 12,
-    borderRadius: 12,
-    marginVertical: 4,
-    shadowColor: '#00aa13',
+    paddingVertical: 7,
+    borderRadius: 8,
+    shadowColor: '#1d72db',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    elevation: 2,
   },
-  pinjamActionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pinjamActionPillText: {
-    fontSize: 12,
-    fontWeight: '700',
+  payInstallmentBtnText: {
+    fontSize: 10.5,
+    fontWeight: '800',
     color: '#ffffff',
   },
-  pinjamActionArrowCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  installmentDetailGrid: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    alignItems: 'center',
+  },
+  installmentDetailItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  installmentDetailDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#e2e8f0',
+  },
+  installmentDetailLabel: {
+    fontSize: 8.5,
+    color: '#64748b',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  installmentDetailVal: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+
+  /* No Debt Card */
+  noDebtCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  noDebtLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  noDebtIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: '#16a34a',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 2,
   },
-  payrollDateBadge: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.8,
-    borderColor: '#bfdbfe',
+  noDebtTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#15803d',
   },
-  payrollDateText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#1d72db',
+  noDebtSub: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 1,
   },
-  payrollCard: {
+  applyLoanBtn: {
+    backgroundColor: '#1d72db',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  applyLoanBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+
+  /* 3. Total Saving Card */
+  totalSavingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
-    shadowColor: '#1d72db',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  totalSavingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  totalSavingIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  totalSavingLabel: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  totalSavingSub: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  savingTypeBadge: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 0.6,
+    borderColor: '#bfdbfe',
+  },
+  savingTypeBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#1d72db',
+  },
+  totalSavingAmount: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#1d72db',
+    letterSpacing: -0.3,
+  },
+
+  /* 4. 2-Column Grid Row */
+  grid2ColRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  gridCardWajib: {
+    flex: 1,
+    backgroundColor: '#fffbeb',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.2,
+    borderColor: '#fde68a',
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
-  payrollRow: {
+  gridCardSukarela: {
+    flex: 1,
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.2,
+    borderColor: '#bfdbfe',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  gridCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    marginBottom: 8,
   },
-  payrollLabelWrapper: {
+  savingIconCircleOrange: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#d97706',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  savingIconCircleBlue: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  gridCardTitleWajib: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  gridCardTitleSukarela: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#1e40af',
+  },
+  gridCardSubWajib: {
+    fontSize: 9,
+    color: '#b45309',
+    marginTop: 1,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  gridCardSubSukarela: {
+    fontSize: 9,
+    color: '#3b82f6',
+    marginTop: 1,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  gridAmountWajib: {
+    fontSize: 15.5,
+    fontWeight: '900',
+    color: '#92400e',
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  gridAmountSukarela: {
+    fontSize: 15.5,
+    fontWeight: '900',
+    color: '#1d72db',
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  gridFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  gridFooterTextWajib: {
+    fontSize: 8.5,
+    color: '#92400e',
+    fontWeight: '700',
+  },
+  gridFooterTextSukarela: {
+    fontSize: 8.5,
+    color: '#1e40af',
+    fontWeight: '700',
+  },
+  gridDetailPillWajib: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    borderWidth: 0.7,
+    borderColor: '#fcd34d',
+  },
+  gridDetailPillTextWajib: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  gridDetailPillSukarela: {
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    borderWidth: 0.7,
+    borderColor: '#93c5fd',
+  },
+  gridDetailPillTextSukarela: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#1d72db',
+  },
+
+  /* 5. SHU Card */
+  shuCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  shuIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+  },
+  shuLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  shuValGreen: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#16a34a',
+    marginTop: 1,
+  },
+  shuSub: {
+    fontSize: 8.5,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+
+  /* 6. Info Summary Card */
+  infoSummaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  infoSummaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 8,
   },
-  payrollDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  payrollLabel: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  payrollVal: {
-    fontSize: 12.5,
-    fontWeight: '600',
+  infoSummaryHeading: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#0f172a',
   },
-  payrollValFree: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16a34a',
+  infoList: {
+    gap: 6,
   },
-  dashedDivider: {
-    height: 1,
-    borderWidth: 0.8,
-    borderColor: '#e2e8f0',
-    borderStyle: 'dashed',
-    marginVertical: 8,
-  },
-  payrollTotalRow: {
+  infoItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 4,
+    alignItems: 'flex-start',
+    gap: 6,
   },
-  payrollTotalLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0f172a',
+  infoBullet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#1d72db',
+    marginTop: 5,
   },
-  shieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 2,
-  },
-  shieldSubText: {
+  infoItemText: {
+    flex: 1,
     fontSize: 9.5,
-    color: '#16a34a',
-    fontWeight: '600',
+    color: '#475569',
+    lineHeight: 14,
   },
-  payrollTotalVal: {
-    fontSize: 15,
+  boldDark: {
     fontWeight: '700',
-    color: '#1d72db',
-    letterSpacing: -0.2,
+    color: '#0f172a',
   },
 });
-

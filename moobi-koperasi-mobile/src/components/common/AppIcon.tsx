@@ -19,6 +19,7 @@ export type IconType =
   | 'home-active'
   | 'wallet'
   | 'wallet-active'
+  | 'qr-code'
   | 'qris'
   | 'history'
   | 'history-active'
@@ -60,7 +61,12 @@ export type IconType =
   | 'mail'
   | 'facebook'
   | 'google'
-  | 'chat';
+  | 'chat'
+  | 'clock'
+  | 'pdam'
+  | 'bpjs'
+  | 'camera'
+  | 'edit';
 
 interface AppIconProps {
   name: IconType;
@@ -247,7 +253,8 @@ export const AppIcon: React.FC<AppIconProps> = ({
           </Svg>
         );
 
-      // 13. QRIS (QR Scan)
+      // 13. QR Code / Member Barcode Scan
+      case 'qr-code':
       case 'qris':
         return (
           <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -580,6 +587,91 @@ export const AppIcon: React.FC<AppIconProps> = ({
             />
             <Line x1="9.5" y1="10" x2="14.5" y2="10" stroke="#0284c7" strokeWidth="1.2" strokeLinecap="round" />
             <Line x1="9.5" y1="12" x2="13" y2="12" stroke="#0284c7" strokeWidth="1.2" strokeLinecap="round" />
+          </Svg>
+        );
+
+      // 42b. Clock / Time
+      case 'clock':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+            <Polyline points="12 6 12 12 16 14" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        );
+
+      // 43. PDAM / Water Utility
+      case 'pdam':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"
+              stroke={color}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M9 13.5c1 1.5 2 2 3 2s2-.5 3-2"
+              stroke={color}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </Svg>
+        );
+
+      // 44. BPJS / Health & Employment Protection
+      case 'bpjs':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+              stroke={color}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M12 7.5v7M8.5 11h7"
+              stroke={color}
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </Svg>
+        );
+
+      // 53. Camera
+      case 'camera':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
+              stroke={color}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth="2" />
+          </Svg>
+        );
+
+      // 54. Edit / Pencil
+      case 'edit':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"
+              stroke={color}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <Path
+              d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+              stroke={color}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </Svg>
         );
 

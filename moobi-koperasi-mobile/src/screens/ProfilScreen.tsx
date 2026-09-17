@@ -15,18 +15,60 @@ import { AppIcon } from '../components/common/AppIcon';
 import { mockUser, mockWallet } from '../data/mockData';
 
 interface ProfilScreenProps {
+  userBalance?: number;
+  userAvatarUri?: string | null;
+  onUpdateAvatar?: (uri: string | null) => void;
+  walletState?: typeof mockWallet;
+  onNavigateTab?: (tab: any) => void;
+  onNavigateScreen?: (screen: any) => void;
   onLogout?: () => void;
 }
 
-export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
+export const ProfilScreen: React.FC<ProfilScreenProps> = ({
+  userBalance = mockWallet.simpananSukarela,
+  userAvatarUri = null,
+  onUpdateAvatar,
+  walletState = mockWallet,
+  onNavigateTab,
+  onNavigateScreen,
+  onLogout,
+}) => {
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(true);
   const [waNotifEnabled, setWaNotifEnabled] = useState(true);
   const [payrollDebitEnabled, setPayrollDebitEnabled] = useState(true);
 
   const [newPin, setNewPin] = useState('');
+
+  // Real Image Upload Handler from device files / camera
+  const handleUploadPhoto = () => {
+    if (typeof document !== 'undefined') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            if (dataUrl) {
+              if (onUpdateAvatar) onUpdateAvatar(dataUrl);
+              setAvatarModalVisible(false);
+              Alert.alert('Berhasil! 📸', 'Foto profil berhasil diunggah dan disinkronkan ke Beranda.');
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    } else {
+      Alert.alert('Upload Foto', 'Pilih file foto dari perangkat Anda.');
+    }
+  };
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID').format(val);
@@ -56,6 +98,8 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
+
+  const totalSimpanan = walletState.simpananWajib + userBalance;
 
   return (
     <View style={styles.screenContainer}>
@@ -105,21 +149,29 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
 
             {/* Middle Profile Row */}
             <View style={styles.cardMainRow}>
-              {/* Profile Avatar */}
-              <View style={styles.avatarContainer}>
+              {/* Profile Avatar with Edit capability */}
+              <TouchableOpacity
+                style={styles.avatarContainer}
+                onPress={() => setAvatarModalVisible(true)}
+                activeOpacity={0.8}
+              >
                 <View style={styles.avatarImgBox}>
-                  <Text style={styles.avatarInitials}>BS</Text>
+                  {userAvatarUri ? (
+                    <Image source={{ uri: userAvatarUri }} style={styles.avatarImage} />
+                  ) : (
+                    <AppIcon name="user" size={28} color="#1d72db" />
+                  )}
                 </View>
-                <View style={styles.verifiedCheckPill}>
-                  <AppIcon name="check-circle" size={12} color="#ffffff" />
+                <View style={styles.avatarEditBadge}>
+                  <AppIcon name="camera" size={10} color="#ffffff" />
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* User Meta Details */}
               <View style={styles.userMetaCol}>
                 <Text style={styles.userNameText}>{mockUser.name}</Text>
                 <Text style={styles.userDeptText}>
-                  Quality Control (QC Dept) • Plant A
+                  {mockUser.jabatan} • {mockUser.department}
                 </Text>
                 <View style={styles.nikPillRow}>
                   <Text style={styles.nikPillText}>NIK: {mockUser.nik}</Text>
@@ -143,7 +195,7 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
                 onPress={() => setQrModalVisible(true)}
                 activeOpacity={0.85}
               >
-                <AppIcon name="qris" size={13} color="#1d72db" />
+                <AppIcon name="qr-code" size={13} color="#1d72db" />
                 <Text style={styles.qrCodePillText}>Tampilkan QR ID</Text>
               </TouchableOpacity>
             </View>
@@ -153,31 +205,104 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
         {/* 2. Mini Stat Highlights */}
         <View style={styles.miniStatsSection}>
           <View style={styles.miniStatCard}>
-            <View style={[styles.miniStatIconWrap, { backgroundColor: '#eff6ff' }]}>
-              <AppIcon name="check-circle" size={16} color="#1d72db" />
+            <View style={[styles.miniStatIconWrap, { backgroundColor: '#1d72db' }]}>
+              <AppIcon name="check-circle" size={17} color="#ffffff" />
             </View>
             <Text style={styles.miniStatVal}>Karyawan Tetap</Text>
             <Text style={styles.miniStatLabel}>Status Kerja</Text>
           </View>
 
           <View style={styles.miniStatCard}>
-            <View style={[styles.miniStatIconWrap, { backgroundColor: '#f0fdf4' }]}>
-              <AppIcon name="calendar" size={16} color="#16a34a" />
+            <View style={[styles.miniStatIconWrap, { backgroundColor: '#16a34a' }]}>
+              <AppIcon name="calendar" size={17} color="#ffffff" />
             </View>
-            <Text style={styles.miniStatVal}>Jan 2024</Text>
+            <Text style={styles.miniStatVal}>{mockUser.memberSince}</Text>
             <Text style={styles.miniStatLabel}>Bergabung</Text>
           </View>
 
           <View style={styles.miniStatCard}>
-            <View style={[styles.miniStatIconWrap, { backgroundColor: '#eff6ff' }]}>
-              <AppIcon name="building" size={16} color="#1d72db" />
+            <View style={[styles.miniStatIconWrap, { backgroundColor: '#0284c7' }]}>
+              <AppIcon name="building" size={17} color="#ffffff" />
             </View>
             <Text style={styles.miniStatVal}>Plant A</Text>
             <Text style={styles.miniStatLabel}>Lokasi Pabrik</Text>
           </View>
         </View>
 
-        {/* 3. Informasi Data Diri & Kepegawaian */}
+        {/* 3. Ringkasan Finansial & Keanggotaan Koperasi (Terintegrasi Penuh) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Ringkasan Finansial Koperasi</Text>
+          </View>
+
+          <View style={styles.financialSummaryCard}>
+            {/* Row 1: Total Simpanan */}
+            <View style={styles.finSummaryRow}>
+              <View style={[styles.finIconBox, { backgroundColor: '#1d72db' }]}>
+                <AppIcon name="simpanan" size={17} color="#ffffff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.finLabel}>Total Simpanan (Wajib & Sukarela)</Text>
+                <Text style={styles.finValueBlue}>Rp {formatRupiah(totalSimpanan)}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.finActionBtn}
+                onPress={() => (onNavigateTab ? onNavigateTab('keuangan') : onNavigateScreen?.('keuangan'))}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.finActionBtnText}>Keuangan ›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Row 2: Status Pinjaman / Angsuran */}
+            <View style={styles.finSummaryRow}>
+              <View style={[styles.finIconBox, { backgroundColor: walletState.pinjamanAktif > 0 ? '#ea580c' : '#16a34a' }]}>
+                <AppIcon
+                  name={walletState.pinjamanAktif > 0 ? 'receipt' : 'check-circle'}
+                  size={17}
+                  color="#ffffff"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.finLabel}>Kewajiban Angsuran Pinjaman</Text>
+                <Text style={walletState.pinjamanAktif > 0 ? styles.finValueOrange : styles.finValueGreen}>
+                  {walletState.pinjamanAktif > 0
+                    ? `Rp ${formatRupiah(walletState.pinjamanAktif)} (${walletState.sisaTenorBulan} Bln)`
+                    : 'Tidak Ada Pinjaman Aktif'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.finActionBtn}
+                onPress={() => onNavigateScreen?.('pinjaman')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.finActionBtnText}>Pinjaman ›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Row 3: Quick Access Riwayat Transaksi */}
+            <TouchableOpacity
+              style={styles.finSummaryRow}
+              onPress={() => (onNavigateTab ? onNavigateTab('riwayat') : onNavigateScreen?.('riwayat'))}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.finIconBox, { backgroundColor: '#475569' }]}>
+                <AppIcon name="history" size={17} color="#ffffff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.finLabel}>Riwayat & Jurnal Mutasi</Text>
+                <Text style={styles.finSubText}>Lihat bukti transaksi & cetak laporan PDF</Text>
+              </View>
+              <AppIcon name="chevron-right" size={14} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 4. Informasi Data Diri & Kepegawaian */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Data Diri & Kepegawaian</Text>
@@ -212,7 +337,7 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
                 <AppIcon name="building" size={15} color="#64748b" />
                 <Text style={styles.infoLabel}>Perusahaan</Text>
               </View>
-              <Text style={styles.infoValue}>PT Bakti Idola Tama</Text>
+              <Text style={styles.infoValue}>{mockUser.company}</Text>
             </View>
             <View style={styles.divider} />
 
@@ -221,7 +346,7 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
                 <AppIcon name="users" size={15} color="#64748b" />
                 <Text style={styles.infoLabel}>Divisi / Unit</Text>
               </View>
-              <Text style={styles.infoValue}>Quality Control (Plant 1)</Text>
+              <Text style={styles.infoValue}>{mockUser.department}</Text>
             </View>
             <View style={styles.divider} />
 
@@ -292,8 +417,8 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
               <Switch
                 value={biometricEnabled}
                 onValueChange={setBiometricEnabled}
-                trackColor={{ false: '#cbd5e1', true: '#93c5fd' }}
-                thumbColor={biometricEnabled ? '#1d72db' : '#f8fafc'}
+                trackColor={{ false: '#cbd5e1', true: '#86efac' }}
+                thumbColor={biometricEnabled ? '#16a34a' : '#94a3b8'}
               />
             </View>
             <View style={styles.divider} />
@@ -311,7 +436,7 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
                 value={waNotifEnabled}
                 onValueChange={setWaNotifEnabled}
                 trackColor={{ false: '#cbd5e1', true: '#86efac' }}
-                thumbColor={waNotifEnabled ? '#16a34a' : '#f8fafc'}
+                thumbColor={waNotifEnabled ? '#16a34a' : '#94a3b8'}
               />
             </View>
             <View style={styles.divider} />
@@ -328,8 +453,8 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
               <Switch
                 value={payrollDebitEnabled}
                 onValueChange={setPayrollDebitEnabled}
-                trackColor={{ false: '#cbd5e1', true: '#fed7aa' }}
-                thumbColor={payrollDebitEnabled ? '#ea580c' : '#f8fafc'}
+                trackColor={{ false: '#cbd5e1', true: '#86efac' }}
+                thumbColor={payrollDebitEnabled ? '#16a34a' : '#94a3b8'}
               />
             </View>
           </View>
@@ -455,12 +580,12 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
             <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }}>
               <View style={styles.qrBody}>
                 <View style={styles.qrFrame}>
-                  <AppIcon name="qris" size={130} color="#1d72db" />
+                  <AppIcon name="qr-code" size={130} color="#1d72db" />
                 </View>
 
                 <Text style={styles.qrUserName}>{mockUser.name}</Text>
                 <Text style={styles.qrNikCode}>NIK: {mockUser.nik}</Text>
-                <Text style={styles.qrDept}>Divisi: Quality Control (QC Plant A)</Text>
+                <Text style={styles.qrDept}>Divisi: {mockUser.department}</Text>
 
                 {/* Simulated Barcode */}
                 <View style={styles.barcodeWrapper}>
@@ -627,6 +752,102 @@ export const ProfilScreen: React.FC<ProfilScreenProps> = ({ onLogout }) => {
                 <Text style={styles.confirmLogoutBtnText}>Ya, Keluar</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Ubah & Edit Foto Profil Karyawan */}
+      <Modal
+        visible={avatarModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setAvatarModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.avatarModalCard}>
+            <View style={styles.qrModalHeader}>
+              <View>
+                <Text style={styles.qrModalTitle}>Ubah Foto Profil</Text>
+                <Text style={styles.qrModalSub}>Single ID Karyawan PT Bakti Idola Tama</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAvatarModalVisible(false)}
+                style={styles.qrCloseBtn}
+                activeOpacity={0.7}
+              >
+                <AppIcon name="x" size={15} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ width: '100%' }}>
+              {/* Current Preview */}
+              <View style={styles.avatarPreviewSection}>
+                <View style={styles.avatarPreviewCircle}>
+                  {userAvatarUri ? (
+                    <Image source={{ uri: userAvatarUri }} style={styles.avatarPreviewImg} />
+                  ) : (
+                    <AppIcon name="user" size={44} color="#1d72db" />
+                  )}
+                </View>
+                <Text style={styles.avatarPreviewName}>{mockUser.name}</Text>
+                <Text style={styles.avatarPreviewSub}>
+                  {userAvatarUri ? 'Foto Profil Kustom Aktif' : 'Icon Profil Standar (Basic)'}
+                </Text>
+              </View>
+
+              {/* 1. Real Upload Foto Button */}
+              <TouchableOpacity
+                style={styles.uploadOptionCard}
+                onPress={handleUploadPhoto}
+                activeOpacity={0.8}
+              >
+                <View style={styles.uploadIconCircle}>
+                  <AppIcon name="camera" size={20} color="#ffffff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.uploadOptionTitle}>Unggah Foto Baru</Text>
+                  <Text style={styles.uploadOptionDesc}>Pilih foto dari galeri atau kamera perangkat</Text>
+                </View>
+                <AppIcon name="chevron-right" size={16} color="#1d72db" />
+              </TouchableOpacity>
+
+              {/* 2. Reset Foto Button (Gunakan Icon Profil Dasar) */}
+              <TouchableOpacity
+                style={[
+                  styles.resetIconOptionCard,
+                  !userAvatarUri && styles.resetIconOptionCardActive,
+                ]}
+                onPress={() => {
+                  if (onUpdateAvatar) onUpdateAvatar(null);
+                  setAvatarModalVisible(false);
+                  Alert.alert('Foto Profil Direset 👤', 'Foto profil telah dikembalikan ke icon profil dasar.');
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.resetIconCircle}>
+                  <AppIcon name="user" size={20} color="#ffffff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resetIconTitle}>Reset Foto</Text>
+                  <Text style={styles.resetIconDesc}>Kembalikan ke icon profil dasar tanpa foto</Text>
+                </View>
+                {!userAvatarUri ? (
+                  <View style={styles.activeCheckBadge}>
+                    <AppIcon name="check" size={12} color="#ffffff" />
+                  </View>
+                ) : (
+                  <AppIcon name="chevron-right" size={16} color="#94a3b8" />
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.avatarModalCloseBtn}
+              onPress={() => setAvatarModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.avatarModalCloseText}>Tutup</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -800,29 +1021,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 2,
   },
-  avatarInitials: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1d72db',
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
   },
-  verifiedCheckPill: {
+  avatarEditBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#16a34a',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#1d72db',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1.8,
     borderColor: '#ffffff',
+    elevation: 3,
   },
   userMetaCol: {
     flex: 1,
@@ -927,12 +1150,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   miniStatIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   miniStatVal: {
     fontSize: 11.5,
@@ -984,6 +1212,78 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#16a34a',
+  },
+  financialSummaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: 2,
+  },
+  finSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  finIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  finLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  finValueBlue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1d72db',
+    marginTop: 1,
+  },
+  finValueOrange: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ea580c',
+    marginTop: 1,
+  },
+  finValueGreen: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#16a34a',
+    marginTop: 1,
+  },
+  finSubText: {
+    fontSize: 9.5,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  finActionBtn: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 7,
+    borderWidth: 0.8,
+    borderColor: '#bfdbfe',
+  },
+  finActionBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1d72db',
   },
   cardGroup: {
     backgroundColor: '#ffffff',
@@ -1425,5 +1725,163 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
+  },
+
+  /* Avatar Picker & Edit Modal */
+  avatarModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 18,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  avatarPreviewSection: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  avatarPreviewCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#1d72db',
+    marginBottom: 8,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  avatarPreviewImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+  },
+  avatarPreviewName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  avatarPreviewSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  /* Real Upload Option Card */
+  uploadOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#eff6ff',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#bfdbfe',
+    marginBottom: 10,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  uploadIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  uploadOptionTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#1e40af',
+  },
+  uploadOptionDesc: {
+    fontSize: 10.5,
+    color: '#3b82f6',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+
+  /* Reset Foto Option Card */
+  resetIconOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#f8fafc',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  resetIconOptionCardActive: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#94a3b8',
+  },
+  resetIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#64748b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetIconTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  resetIconDesc: {
+    fontSize: 10.5,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  activeCheckBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarModalCloseBtn: {
+    width: '100%',
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  avatarModalCloseText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#475569',
   },
 });

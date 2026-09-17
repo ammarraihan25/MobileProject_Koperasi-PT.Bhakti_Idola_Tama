@@ -209,32 +209,7 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollBody}
       >
-        {/* 2. Hero Wallet Balance Card */}
-        <View style={styles.heroBalanceCard}>
-          <View style={styles.heroGlowCircle} />
-          <View style={styles.heroBalanceTop}>
-            <View style={styles.heroLabelWrap}>
-              <AppIcon name="wallet" size={15} color="#38bdf8" />
-              <Text style={styles.heroBalanceLabel}>Sumber Dana: Saldo Koperasi</Text>
-            </View>
-            <View style={styles.karyawanPill}>
-              <Text style={styles.karyawanPillText}>Cicilan 0% Payroll</Text>
-            </View>
-          </View>
-
-          <View style={styles.heroBalanceMain}>
-            <Text style={styles.heroCurrency}>Rp</Text>
-            <Text style={styles.heroBalanceAmount}>{formatRupiah(userBalance)}</Text>
-          </View>
-
-          <View style={styles.heroFooter}>
-            <Text style={styles.heroSubText}>
-              Bisa bayar langsung via Saldo Koperasi atau Cicilan Potong Gaji s/d 6 Bulan
-            </Text>
-          </View>
-        </View>
-
-        {/* 3. Integrated Search & Filter Section */}
+        {/* 2. Integrated Search & Filter Section */}
         <View style={styles.searchFilterContainer}>
           {/* Search Input Box */}
           <View style={styles.searchBar}>
@@ -1098,84 +1073,32 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 90,
   },
-  heroBalanceCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-  },
-  heroGlowCircle: {
-    position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(2, 132, 199, 0.35)',
-  },
-  heroBalanceTop: {
+  balanceBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 12,
   },
-  heroLabelWrap: {
+  balanceBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  heroBalanceLabel: {
+  balanceBarLabel: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#1e40af',
   },
-  karyawanPill: {
-    backgroundColor: '#0284c7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  karyawanPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  heroBalanceMain: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-    marginVertical: 4,
-  },
-  heroCurrency: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#38bdf8',
-  },
-  heroBalanceAmount: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#ffffff',
-    letterSpacing: -0.5,
-  },
-  heroFooter: {
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  heroSubText: {
-    fontSize: 10.5,
-    color: '#94a3b8',
-    fontWeight: '500',
+  balanceBarValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#1d4ed8',
   },
   /* 3. Search & Filter Bar Styles */
   searchFilterContainer: {

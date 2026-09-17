@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { colors } from '../theme/colors';
 import { TabType } from '../types';
 import { AppIcon } from './common/AppIcon';
 
@@ -44,21 +43,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ currentTab, onSelect
         </Text>
       </TouchableOpacity>
 
-      {/* Tab 3: QRIS Center Floating Button */}
-      <View style={styles.qrisButtonWrapper}>
-        <TouchableOpacity
-          style={[styles.qrisButton, currentTab === 'qris' && styles.qrisButtonActive]}
-          onPress={() => onSelectTab('qris')}
-          activeOpacity={0.85}
-        >
-          <AppIcon name="qris" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={[styles.tabLabel, currentTab === 'qris' && styles.activeTabLabel]}>
-          QRIS
-        </Text>
-      </View>
-
-      {/* Tab 4: Riwayat */}
+      {/* Tab 3: Riwayat */}
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => onSelectTab('riwayat')}
@@ -74,7 +59,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ currentTab, onSelect
         </Text>
       </TouchableOpacity>
 
-      {/* Tab 5: Profil */}
+      {/* Tab 4: Profil */}
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => onSelectTab('profil')}
@@ -102,7 +87,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingBottom: Platform.OS === 'ios' ? 16 : 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -115,52 +100,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabIcon: {
-    fontSize: 18,
-    marginBottom: 2,
-    opacity: 0.45,
-  },
-  activeTabIcon: {
-    opacity: 1,
-  },
   tabLabel: {
     fontSize: 10.5,
     fontWeight: '600',
     color: '#64748b',
     letterSpacing: -0.1,
+    marginTop: 2,
   },
   activeTabLabel: {
     color: '#1d72db',
     fontWeight: '700',
-  },
-  qrisButtonWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: -12,
-  },
-  qrisButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#1d72db',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1d72db',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 6,
-    borderWidth: 3,
-    borderColor: '#ffffff',
-  },
-  qrisButtonActive: {
-    backgroundColor: '#00aa13',
-    shadowColor: '#00aa13',
-  },
-  qrisIcon: {
-    fontSize: 22,
-    color: '#ffffff',
-    fontWeight: 'bold',
   },
 });

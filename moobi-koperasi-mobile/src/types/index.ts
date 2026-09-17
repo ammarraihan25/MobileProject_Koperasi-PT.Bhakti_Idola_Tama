@@ -1,4 +1,4 @@
-export type TabType = 'beranda' | 'keuangan' | 'qris' | 'riwayat' | 'profil';
+export type TabType = 'beranda' | 'keuangan' | 'riwayat' | 'profil';
 
 export type ActiveScreenType =
   | TabType
@@ -7,8 +7,14 @@ export type ActiveScreenType =
   | 'tarik'
   | 'tagihan'
   | 'pulsa'
+  | 'token'
+  | 'emoney'
+  | 'pdam'
+  | 'bpjs'
   | 'pinjaman'
-  | 'kantin';
+  | 'kantin'
+  | 'simpanan_wajib'
+  | 'simpanan_sukarela';
 
 export interface ElektronikProductItem {
   id: string;
@@ -46,28 +52,35 @@ export interface UserProfile {
   id: string;
   nik: string;
   name: string;
+  jabatan: string;
   phone: string;
   email: string;
   company: string;
   department: string;
   shift: string;
+  gajiBulanan: number;
+  masaKerjaBulan: number;
   memberSince: string;
   securityScore: number;
   isPayrollLinked: boolean;
   waNotificationActive: boolean;
+  isEligiblePinjaman: boolean;
+  isEligibleTarikWajib: boolean;
+  avatarUri?: string | null;
 }
 
 export interface KoperasiWallet {
-  saldoUtama: number;
+  saldoUtama: number; // Saldo Simpanan Sukarela yang dapat digunakan untuk transaksi
   saldoKantin?: number;
   moobiCoins: number;
 
-  plafonPinjaman: number;
+  gajiPokok: number;
+  plafonPinjaman: number; // 30% x Gaji x 12
   pinjamanAktif: number;
   angsuranPerBulan: number;
   sisaTenorBulan: number;
   simpananPokok: number;
-  simpananWajib: number;
+  simpananWajib: number; // Terkunci s.d. 1 thn masa kerja
   simpananSukarela: number;
   estimasiPotongGajiBulanIni: number;
   estimasiBagiHasilSHU: number;
@@ -80,7 +93,7 @@ export interface TransactionItem {
   description: string;
   amount: number;
   isCredit: boolean; // true = dana masuk (+), false = transaksi keluar/potongan (-)
-  paymentSource: string; // 'Saldo Koperasi' | 'Moobi Coins' | 'Potong Gaji Payroll' | 'Saldo Kantin'
+  paymentSource: string; // 'Simpanan Sukarela' | 'Moobi Coins' | 'Potong Gaji Payroll'
   timestamp: string;
   dateLabel: string;
   monthLabel: string;
@@ -100,4 +113,3 @@ export interface KantinMenuItem {
   canteenStand: string;
   estimatedPrepTime: string;
 }
-
