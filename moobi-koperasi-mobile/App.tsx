@@ -354,8 +354,8 @@ export default function App() {
 
   if (showSplash) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#0a101d' }]}>
-        <StatusBar barStyle="light-content" backgroundColor="#0a101d" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#ffffff' }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
         <SplashScreen
           durationSeconds={5}
           onFinish={() => setShowSplash(false)}
