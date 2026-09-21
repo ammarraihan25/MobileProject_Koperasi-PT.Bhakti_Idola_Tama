@@ -245,7 +245,7 @@ export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
             <View style={styles.infoItem}>
               <View style={styles.infoBullet} />
               <Text style={styles.infoItemText}>
-                <Text style={styles.boldDark}>Simpanan Sukarela</Text> tabungan fleksibel anggota yang hanya dapat disetor & ditarik dana ke rekening payroll (bukan untuk pembayaran belanja).
+                <Text style={styles.boldDark}>Simpanan Sukarela</Text> tabungan anggota via auto-debit payroll bulanan (nominal ditentukan anggota) yang dapat ditarik sewaktu-waktu ke rekening payroll BCA.
               </Text>
             </View>
             <View style={styles.infoItem}>

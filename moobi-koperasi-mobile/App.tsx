@@ -127,11 +127,11 @@ export default function App() {
   // Loan Application Handler (Submitted to HR)
   const handleApplyLoan = (amount: number, tenor: number) => {
     recordTransaction(
-      'Pengajuan Pinjaman (HR Approval)',
+      'Pengajuan Pinjaman (Verifikasi)',
       'simpan_pinjam',
       amount,
       'Verifikasi Payroll PT BIT',
-      `Tiket pengajuan pinjaman ${tenor} bulan telah dikirimkan ke HRD untuk persetujuan`,
+      `Tiket pengajuan pinjaman ${tenor} bulan telah dikirimkan ke Pengurus Koperasi & HRD PT BIT`,
       'paylater',
       true
     );
@@ -157,8 +157,8 @@ export default function App() {
       'Pembayaran Angsuran Pinjaman',
       'simpan_pinjam',
       amount,
-      'VA Bank / QRIS Pihak Ke-3',
-      'Pembayaran / pelunasan cicilan pinjaman PT Bakti Idola Tama via Payment Gateway',
+      'QRIS Koperasi PT BIT',
+      'Pembayaran / pelunasan cicilan pinjaman anggota koperasi PT Bakti Idola Tama',
       'simpanan',
       false
     );

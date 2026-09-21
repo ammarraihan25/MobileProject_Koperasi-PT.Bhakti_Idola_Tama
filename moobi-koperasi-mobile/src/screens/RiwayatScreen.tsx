@@ -498,9 +498,10 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       const isLoan =
         item.title.toLowerCase().includes('pinjaman') ||
         item.title.toLowerCase().includes('cicilan');
+      const isSukarela = item.title.toLowerCase().includes('sukarela');
       return {
-        icon: (isLoan ? 'paylater' : 'wallet') as IconType,
-        bgColor: '#1d72db',
+        icon: (isLoan ? 'paylater' : isSukarela ? 'simpanan' : 'wallet') as IconType,
+        bgColor: isSukarela ? '#0284c7' : '#1d72db',
         iconColor: '#ffffff',
       };
     }
@@ -907,6 +908,16 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                       {selectedTx.description}
                     </Text>
                   </View>
+
+                  {/* Contextual: Catatan Transaksi */}
+                  {selectedTx.metadata?.notes && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Catatan Koperasi</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedTx.metadata.notes}
+                      </Text>
+                    </View>
+                  )}
 
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Biaya Layanan</Text>
