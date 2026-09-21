@@ -165,7 +165,7 @@ export const QrisScreen: React.FC<QrisScreenProps> = ({
       'Scan Berhasil! 🎉',
       `Merchant: ${merchantName}\nTotal Pembayaran: Rp ${new Intl.NumberFormat('id-ID').format(
         amount
-      )}\nMetode Bayar: Saldo Koperasi (Cashless)`,
+      )}\nMetode Bayar: QRIS`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -183,7 +183,7 @@ export const QrisScreen: React.FC<QrisScreenProps> = ({
               'Pembayaran Sukses! ✅',
               `Transaksi sebesar Rp ${new Intl.NumberFormat('id-ID').format(
                 amount
-              )} telah berhasil dipotong dari Saldo Koperasi.\n\nStruk digital telah dikirimkan secara otomatis ke WhatsApp Anda (${mockUser.phone}) dan tercatat di mutasi riwayat.`
+              )} telah berhasil diproses melalui QRIS.\n\nStruk digital telah dikirimkan secara otomatis ke WhatsApp Anda (${mockUser.phone}) dan tercatat di mutasi riwayat.`
             );
           },
         },
@@ -360,8 +360,7 @@ export const QrisScreen: React.FC<QrisScreenProps> = ({
 
           <View style={styles.walletQuickBadge}>
             <Text style={styles.walletText}>
-              Sumber Dana: <Text style={styles.walletBold}>Saldo Koperasi</Text> (Rp{' '}
-              {new Intl.NumberFormat('id-ID').format(userBalance)})
+              Metode: <Text style={styles.walletBold}>QRIS Standar Nasional (GPN)</Text>
             </Text>
           </View>
         </View>

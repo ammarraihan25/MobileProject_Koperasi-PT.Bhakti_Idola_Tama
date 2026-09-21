@@ -71,14 +71,10 @@ export const KantinModal: React.FC<KantinModalProps> = ({
       Alert.alert('Keranjang Kosong', 'Silakan tambahkan menu yang ingin dipesan terlebih dahulu.');
       return;
     }
-    if (userBalance < totalPrice) {
-      Alert.alert('Saldo Tidak Cukup', `Saldo kantin/koperasi Anda Rp ${formatRupiah(userBalance)}. Kurang untuk membayar Rp ${formatRupiah(totalPrice)}.`);
-      return;
-    }
 
     Alert.alert(
       'Konfirmasi Pre-Order Kantin 🍱',
-      `Jumlah: ${totalItems} Item\nTotal Bayar: Rp ${formatRupiah(totalPrice)}\nJadwal Ambil: ${selectedShift}\n\nMetode: Saldo Koperasi (Cashless 100%)`,
+      `Jumlah: ${totalItems} Item\nTotal Bayar: Rp ${formatRupiah(totalPrice)}\nJadwal Ambil: ${selectedShift}\n\nPembayaran: Dilakukan via Pihak Ke-3 saat pengambilan di loket.\n(Saldo Simpanan Koperasi tidak dipotong)`,
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -89,7 +85,7 @@ export const KantinModal: React.FC<KantinModalProps> = ({
             }
             Alert.alert(
               'Pesanan Diterima Dapur Kantin! 🍲',
-              `Pesanan Anda sedang dipersiapkan untuk ${selectedShift}.\nAmbil pesanan di stand kasir tanpa antre bayar tunai.`
+              `Pesanan Anda sedang dipersiapkan untuk ${selectedShift}.\nAmbil pesanan di loket kasir kantin PT BIT.`
             );
             setCart({});
             onClose();

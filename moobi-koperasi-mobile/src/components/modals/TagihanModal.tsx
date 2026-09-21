@@ -28,7 +28,7 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<'pln' | 'bpjs' | 'pdam' | 'internet'>('bpjs');
   const [customerId, setCustomerId] = useState('0001-8293-8472');
   const [billChecked, setBillChecked] = useState(true);
-  const [paymentSource, setPaymentSource] = useState<'saldo' | 'payroll'>('saldo');
+  const [paymentSource, setPaymentSource] = useState<'qris' | 'va' | 'ewallet'>('qris');
 
   const categories = [
     {
@@ -101,15 +101,12 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
   };
 
   const handlePay = () => {
-    if (paymentSource === 'saldo' && userBalance < currentCat.billAmount) {
-      Alert.alert(
-        'Saldo Tidak Cukup',
-        `Saldo koperasi Anda Rp ${formatRupiah(userBalance)}. Kurang untuk membayar Rp ${formatRupiah(
-          currentCat.billAmount
-        )}.`
-      );
-      return;
-    }
+    const paymentLabel =
+      paymentSource === 'qris'
+        ? 'QRIS Dinamis Pihak Ke-3'
+        : paymentSource === 'va'
+        ? 'Virtual Account Bank'
+        : 'E-Wallet Mitra';
 
     if (onPaymentSuccess) {
       onPaymentSuccess(currentCat.billAmount, currentCat.name);
@@ -117,9 +114,7 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
 
     Alert.alert(
       'Pembayaran Berhasil! 🧾',
-      `Tagihan ${currentCat.name} senilai Rp ${formatRupiah(currentCat.billAmount)} berhasil dibayar.\n\nNomor Pelanggan: ${customerId}\nMetode: ${
-        paymentSource === 'saldo' ? 'Saldo Koperasi Anggota' : 'Potong Slip Gaji Payroll PT BIT'
-      }\nNo. Struk: PPOB-${Date.now().toString().slice(-6)}`,
+      `Tagihan ${currentCat.name} senilai Rp ${formatRupiah(currentCat.billAmount)} berhasil dibayar.\n\nNomor Pelanggan: ${customerId}\nMetode: ${paymentLabel}\nNo. Struk: PPOB-${Date.now().toString().slice(-6)}\n\nCatatan: Saldo Simpanan Koperasi tidak dipotong.`,
       [
         {
           text: 'Selesai',
@@ -143,7 +138,7 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.titleRow}>
               <View style={styles.headerIconCircle}>
-                <AppIcon name="tagihan" size={18} color="#ea580c" />
+                <AppIcon name="tagihan" size={17} color="#ffffff" />
               </View>
               <View>
                 <Text style={styles.modalTitle}>Bayar Tagihan & PPoB</Text>
@@ -156,19 +151,16 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-            {/* Hero Wallet Balance Card */}
-            <View style={styles.heroBalanceCard}>
-              <View style={styles.heroGlowCircle} />
-              <View style={styles.heroBalanceTop}>
-                <View style={styles.heroLabelWrap}>
-                  <AppIcon name="wallet" size={14} color="#fdba74" />
-                  <Text style={styles.heroBalanceLabel}>Saldo Koperasi Tersedia</Text>
-                </View>
+            {/* Info Banner Pihak ke-3 */}
+            <View style={styles.heroInfoBanner}>
+              <View style={styles.heroInfoIconBox}>
+                <AppIcon name="zap" size={16} color="#ea580c" />
               </View>
-
-              <View style={styles.heroBalanceMain}>
-                <Text style={styles.heroCurrency}>Rp</Text>
-                <Text style={styles.heroBalanceAmount}>{formatRupiah(userBalance)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroInfoTitle}>Layanan Pembayaran PPOB</Text>
+                <Text style={styles.heroInfoSub}>
+                  Pembayaran diproses via Payment Gateway Mitra Pihak Ke-3 secara instan & aman (Saldo Simpanan Koperasi tidak dipotong).
+                </Text>
               </View>
             </View>
 
@@ -317,84 +309,119 @@ export const TagihanModal: React.FC<TagihanModalProps> = ({
 
                 {/* Payment Source Options */}
                 <View style={styles.paymentSourceHeader}>
-                  <Text style={styles.paymentSourceLabel}>PILIH METODE PEMBAYARAN:</Text>
+                  <Text style={styles.paymentSourceLabel}>PILIH METODE PEMBAYARAN (PIHAK KE-3):</Text>
                 </View>
 
-                <View style={styles.paymentSourceRow}>
-                  {/* Option 1: Saldo Koperasi */}
+                <View style={styles.paymentSourceRow3}>
+                  {/* Option 1: QRIS */}
                   <TouchableOpacity
                     style={[
-                      styles.sourceBtn,
-                      paymentSource === 'saldo' && styles.sourceBtnActive,
+                      styles.sourceBtn3,
+                      paymentSource === 'qris' && styles.sourceBtnActive,
                     ]}
-                    onPress={() => setPaymentSource('saldo')}
+                    onPress={() => setPaymentSource('qris')}
                     activeOpacity={0.8}
                   >
                     <View style={styles.sourceBtnTop}>
-                      <View style={[styles.sourceIconBox, paymentSource === 'saldo' && styles.sourceIconBoxActive]}>
+                      <View style={[styles.sourceIconBox, paymentSource === 'qris' && styles.sourceIconBoxActive]}>
                         <AppIcon
-                          name="wallet"
+                          name="qris"
                           size={14}
-                          color={paymentSource === 'saldo' ? '#ea580c' : '#64748b'}
+                          color={paymentSource === 'qris' ? '#ea580c' : '#64748b'}
                         />
                       </View>
                       <View
                         style={[
                           styles.sourceRadio,
-                          paymentSource === 'saldo' && styles.sourceRadioActive,
+                          paymentSource === 'qris' && styles.sourceRadioActive,
                         ]}
                       >
-                        {paymentSource === 'saldo' && <View style={styles.sourceRadioDot} />}
+                        {paymentSource === 'qris' && <View style={styles.sourceRadioDot} />}
                       </View>
                     </View>
                     <Text
                       style={[
                         styles.sourceBtnTitle,
-                        paymentSource === 'saldo' && styles.sourceBtnTitleActive,
+                        paymentSource === 'qris' && styles.sourceBtnTitleActive,
                       ]}
                     >
-                      Saldo Koperasi
+                      QRIS Pihak Ke-3
                     </Text>
-                    <Text style={styles.sourceBtnSub}>
-                      Tersedia: Rp {formatRupiah(userBalance)}
-                    </Text>
+                    <Text style={styles.sourceBtnSub}>Scan Instan</Text>
                   </TouchableOpacity>
 
-                  {/* Option 2: Potong Slip Gaji */}
+                  {/* Option 2: VA Bank */}
                   <TouchableOpacity
                     style={[
-                      styles.sourceBtn,
-                      paymentSource === 'payroll' && styles.sourceBtnActive,
+                      styles.sourceBtn3,
+                      paymentSource === 'va' && styles.sourceBtnActive,
                     ]}
-                    onPress={() => setPaymentSource('payroll')}
+                    onPress={() => setPaymentSource('va')}
                     activeOpacity={0.8}
                   >
                     <View style={styles.sourceBtnTop}>
-                      <View style={[styles.sourceIconBox, paymentSource === 'payroll' && styles.sourceIconBoxActive]}>
+                      <View style={[styles.sourceIconBox, paymentSource === 'va' && styles.sourceIconBoxActive]}>
                         <AppIcon
-                          name="receipt"
+                          name="transfer"
                           size={14}
-                          color={paymentSource === 'payroll' ? '#ea580c' : '#64748b'}
+                          color={paymentSource === 'va' ? '#ea580c' : '#64748b'}
                         />
                       </View>
                       <View
                         style={[
                           styles.sourceRadio,
-                          paymentSource === 'payroll' && styles.sourceRadioActive,
+                          paymentSource === 'va' && styles.sourceRadioActive,
                         ]}
                       >
-                        {paymentSource === 'payroll' && <View style={styles.sourceRadioDot} />}
+                        {paymentSource === 'va' && <View style={styles.sourceRadioDot} />}
                       </View>
                     </View>
                     <Text
                       style={[
                         styles.sourceBtnTitle,
-                        paymentSource === 'payroll' && styles.sourceBtnTitleActive,
+                        paymentSource === 'va' && styles.sourceBtnTitleActive,
                       ]}
                     >
-                      Potong Slip Gaji
+                      Virtual Account
                     </Text>
-                    <Text style={styles.sourceBtnSub}>Payroll Otomatis</Text>
+                    <Text style={styles.sourceBtnSub}>BCA/Mandiri/BRI</Text>
+                  </TouchableOpacity>
+
+                  {/* Option 3: E-Wallet */}
+                  <TouchableOpacity
+                    style={[
+                      styles.sourceBtn3,
+                      paymentSource === 'ewallet' && styles.sourceBtnActive,
+                    ]}
+                    onPress={() => setPaymentSource('ewallet')}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.sourceBtnTop}>
+                      <View style={[styles.sourceIconBox, paymentSource === 'ewallet' && styles.sourceIconBoxActive]}>
+                        <AppIcon
+                          name="topup"
+                          size={14}
+                          color={paymentSource === 'ewallet' ? '#ea580c' : '#64748b'}
+                        />
+                      </View>
+                      <View
+                        style={[
+                          styles.sourceRadio,
+                          paymentSource === 'ewallet' && styles.sourceRadioActive,
+                        ]}
+                      >
+                        {paymentSource === 'ewallet' && <View style={styles.sourceRadioDot} />}
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.sourceBtnTitle,
+                        paymentSource === 'ewallet' && styles.sourceBtnTitleActive,
+                      ]}
+                    >
+                      E-Wallet
+                    </Text>
+                    <Text style={styles.sourceBtnSub}>GoPay/OVO/DANA</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -448,12 +475,15 @@ const styles = StyleSheet.create({
   headerIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ffedd5',
+    borderRadius: 11,
+    backgroundColor: '#ea580c',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
+    shadowColor: '#ea580c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
   modalTitle: {
     fontSize: 15,
@@ -838,6 +868,36 @@ const styles = StyleSheet.create({
     color: '#c2410c',
     letterSpacing: -0.5,
   },
+  heroInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff7ed',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.2,
+    borderColor: '#fed7aa',
+    marginBottom: 14,
+  },
+  heroInfoIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ffedd5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroInfoTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#9a3412',
+  },
+  heroInfoSub: {
+    fontSize: 9.5,
+    color: '#ea580c',
+    marginTop: 2,
+    lineHeight: 13,
+  },
   paymentSourceHeader: {
     marginBottom: 6,
   },
@@ -847,10 +907,18 @@ const styles = StyleSheet.create({
     color: '#64748b',
     letterSpacing: 0.5,
   },
-  paymentSourceRow: {
+  paymentSourceRow3: {
     flexDirection: 'row',
-    gap: 7,
+    gap: 6,
     marginBottom: 12,
+  },
+  sourceBtn3: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
   },
   sourceBtn: {
     flex: 1,

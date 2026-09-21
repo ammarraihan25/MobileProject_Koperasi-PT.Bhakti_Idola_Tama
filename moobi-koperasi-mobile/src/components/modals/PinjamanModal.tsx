@@ -168,7 +168,7 @@ export const PinjamanModal: React.FC<PinjamanModalProps> = ({
                 </Text>
               </View>
               <Text style={styles.simulasiNotice}>
-                ✓ Tanpa Biaya Admin Awal • Bunga Koperasi 0.8% Ringan
+                ✓ Bunga Koperasi 0.8% Ringan • Transparan
               </Text>
             </View>
 

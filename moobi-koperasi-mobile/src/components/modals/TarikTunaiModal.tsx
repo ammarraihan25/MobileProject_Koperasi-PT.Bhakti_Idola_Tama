@@ -146,11 +146,11 @@ export const TarikTunaiModal: React.FC<TarikTunaiModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.titleRow}>
               <View style={styles.headerIconCircle}>
-                <AppIcon name="tarik" size={18} color="#059669" />
+                <AppIcon name="tarik" size={17} color="#ffffff" />
               </View>
               <View>
                 <Text style={styles.modalTitle}>Tarik Tunai Koperasi</Text>
-                <Text style={styles.modalSub}>Tarik Tunai Tanpa Kartu • Bebas Biaya</Text>
+                <Text style={styles.modalSub}>Tarik Tunai Tanpa Kartu • Kasir Koperasi</Text>
               </View>
             </View>
             <TouchableOpacity onPress={handleReset} style={styles.closeBtn} activeOpacity={0.7}>
@@ -484,7 +484,7 @@ export const TarikTunaiModal: React.FC<TarikTunaiModalProps> = ({
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
               <View style={styles.tokenSuccessCard}>
                 <View style={styles.tokenIconCircle}>
-                  <AppIcon name="tarik" size={24} color="#059669" />
+                  <AppIcon name="tarik" size={24} color="#ffffff" />
                 </View>
 
                 <Text style={styles.tokenSuccessCaption}>KODE TOKEN PENARIKAN TUNAI</Text>
@@ -583,12 +583,15 @@ const styles = StyleSheet.create({
   headerIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ecfdf5',
+    borderRadius: 11,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
   modalTitle: {
     fontSize: 15,
@@ -1053,15 +1056,18 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   tokenIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ecfdf5',
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    borderWidth: 1.5,
-    borderColor: '#a7f3d0',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2.5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.5,
+    elevation: 3,
   },
   tokenSuccessCaption: {
     fontSize: 10,

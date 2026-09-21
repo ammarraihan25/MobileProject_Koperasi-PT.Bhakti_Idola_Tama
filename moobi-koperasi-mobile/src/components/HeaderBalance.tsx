@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { AppIcon } from './common/AppIcon';
 import { mockWallet, mockUser } from '../data/mockData';
+import { NotificationModal, initialNotifications, NotificationItem } from './modals/NotificationModal';
+import { ActiveScreenType, TabType } from '../types';
 
 interface HeaderBalanceProps {
   saldo?: number;
@@ -33,6 +35,9 @@ interface HeaderBalanceProps {
   onKantinPress?: () => void;
   onPinjamanPress?: () => void;
   onAvatarPress?: () => void;
+  onNotificationPress?: () => void;
+  onNavigateScreen?: (screen: ActiveScreenType) => void;
+  onNavigateTab?: (tab: TabType) => void;
 }
 
 export const HeaderBalance: React.FC<HeaderBalanceProps> = ({
@@ -55,7 +60,15 @@ export const HeaderBalance: React.FC<HeaderBalanceProps> = ({
   onDetailSukarelaPress,
   onPinjamanPress,
   onAvatarPress,
+  onNotificationPress,
+  onNavigateScreen,
+  onNavigateTab,
 }) => {
+  const [isNotifModalVisible, setIsNotifModalVisible] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
   // Pulse animation for notification dot
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -103,21 +116,24 @@ export const HeaderBalance: React.FC<HeaderBalanceProps> = ({
 
         <TouchableOpacity
           style={styles.notificationBtn}
-          onPress={() =>
-            Alert.alert(
-              'Pusat Notifikasi 🔔',
-              '• [Payroll] Simpanan Wajib & Potongan Gaji Telah Disinkronkan\n• [Koperasi] Plafon Pinjaman Karyawan Aktif\n• [HRD] Data Masa Kerja & Keanggotaan Terverifikasi'
-            )
-          }
+          onPress={() => {
+            if (onNotificationPress) {
+              onNotificationPress();
+            } else {
+              setIsNotifModalVisible(true);
+            }
+          }}
           activeOpacity={0.8}
         >
           <AppIcon name="bell" size={19} color="#ffffff" />
-          <Animated.View
-            style={[
-              styles.notificationDot,
-              { transform: [{ scale: pulseAnim }] },
-            ]}
-          />
+          {unreadCount > 0 && (
+            <Animated.View
+              style={[
+                styles.notificationDot,
+                { transform: [{ scale: pulseAnim }] },
+              ]}
+            />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -201,7 +217,7 @@ export const HeaderBalance: React.FC<HeaderBalanceProps> = ({
             </View>
             <View style={styles.cardTextGroup}>
               <Text style={styles.cardLabelSukarela}>Simpanan Sukarela</Text>
-              <Text style={styles.cardArticleSubSukarela}>Aktif Transaksi • Belanja & Kantin BIT</Text>
+              <Text style={styles.cardArticleSubSukarela}>Tabungan Anggota • Khusus Penarikan Dana</Text>
               <Text style={styles.cardAmountValue}>
                 Rp {formatRupiah(simpananSukarela)}
               </Text>
@@ -219,6 +235,16 @@ export const HeaderBalance: React.FC<HeaderBalanceProps> = ({
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Pusat Notifikasi Modal */}
+      <NotificationModal
+        visible={isNotifModalVisible}
+        onClose={() => setIsNotifModalVisible(false)}
+        notifications={notifications}
+        onUpdateNotifications={setNotifications}
+        onNavigateScreen={onNavigateScreen}
+        onNavigateTab={onNavigateTab}
+      />
     </View>
   );
 };

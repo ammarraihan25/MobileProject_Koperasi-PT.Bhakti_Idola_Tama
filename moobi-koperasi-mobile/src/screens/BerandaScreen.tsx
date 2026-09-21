@@ -42,9 +42,6 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       case '2': // Kantin BIT
         onNavigateScreen ? onNavigateScreen('kantin') : Alert.alert('Kantin', 'Membuka Layanan Kantin');
         break;
-      case '3': // Produk Elektronik
-        onNavigateScreen ? onNavigateScreen('produk') : Alert.alert('Elektronik', 'Membuka Katalog Elektronik');
-        break;
       case '4': // Token Listrik PLN
         if (onNavigateScreen) {
           onNavigateScreen('token');
@@ -127,13 +124,13 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       shadowColor: '#16a34a',
     },
     {
-      id: '3',
-      title: 'Elektronik',
-      icon: 'elektronik',
+      id: '7',
+      title: 'Simpanan',
+      icon: 'simpanan',
       color: '#ffffff',
-      bg: '#1d72db',
-      borderColor: '#1462c4',
-      shadowColor: '#1d72db',
+      bg: '#059669',
+      borderColor: '#047857',
+      shadowColor: '#059669',
     },
     {
       id: '4',
@@ -154,15 +151,6 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       shadowColor: '#2563eb',
     },
     {
-      id: '6',
-      title: 'Top Up E-Money',
-      icon: 'topup',
-      color: '#ffffff',
-      bg: '#059669',
-      borderColor: '#047857',
-      shadowColor: '#059669',
-    },
-    {
       id: '9',
       title: 'PDAM',
       icon: 'pdam',
@@ -180,6 +168,15 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       borderColor: '#0f766e',
       shadowColor: '#0d9488',
     },
+    {
+      id: '8',
+      title: 'Riwayat',
+      icon: 'riwayat',
+      color: '#ffffff',
+      bg: '#6366f1',
+      borderColor: '#4f46e5',
+      shadowColor: '#6366f1',
+    },
   ];
 
   const promoArticles: {
@@ -194,7 +191,7 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
     ctaColor: string;
     cardBorder: string;
     cardBg: string;
-    actionType: 'pinjaman' | 'kantin' | 'produk';
+    actionType: 'pinjaman' | 'kantin';
   }[] = [
     {
       id: '1',
@@ -224,20 +221,6 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
       cardBg: '#fafefb',
       actionType: 'kantin',
     },
-    {
-      id: '3',
-      title: 'Katalog Produk PT BIT (Miyako, Rinnai, Shimizu)',
-      desc: 'Produk elektronik rumah tangga original garansi resmi dengan cicilan bunga 0% potong payroll.',
-      icon: 'elektronik',
-      iconBg: '#1d72db',
-      watermarkImage: require('../../assets/page/produk.jpg'),
-      ctaText: 'Lihat Katalog',
-      ctaBg: '#dbeafe',
-      ctaColor: '#1d72db',
-      cardBorder: '#bfdbfe',
-      cardBg: '#fafcff',
-      actionType: 'produk',
-    },
   ];
 
   return (
@@ -261,6 +244,8 @@ export const BerandaScreen: React.FC<BerandaScreenProps> = ({
         onDetailPress={() => onNavigateTab ? onNavigateTab('keuangan') : onNavigateScreen?.('keuangan')}
         onDetailWajibPress={() => onNavigateScreen ? onNavigateScreen('simpanan_wajib') : onNavigateTab?.('keuangan')}
         onDetailSukarelaPress={() => onNavigateScreen ? onNavigateScreen('simpanan_sukarela') : onNavigateTab?.('keuangan')}
+        onNavigateScreen={onNavigateScreen}
+        onNavigateTab={onNavigateTab}
       />
 
       {/* 2. Plafon Pinjaman Karyawan (Menggantikan Promo Khusus Karyawan) */}

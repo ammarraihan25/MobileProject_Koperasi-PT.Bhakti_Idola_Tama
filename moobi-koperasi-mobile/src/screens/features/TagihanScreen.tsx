@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { AppIcon } from '../../components/common/AppIcon';
+import { QrisPaymentModal } from '../../components/modals/QrisPaymentModal';
 
 interface TagihanScreenProps {
   onBack: () => void;
@@ -38,6 +39,7 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
   const [customerId, setCustomerId] = useState('');
   const [billChecked, setBillChecked] = useState(true);
   const [paymentSource, setPaymentSource] = useState<'saldo' | 'payroll'>('saldo');
+  const [qrisModalVisible, setQrisModalVisible] = useState(false);
 
   const categories = [
     {
@@ -126,32 +128,25 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
       Alert.alert('Tagihan Lunas', 'Tagihan ini sudah dibayar untuk periode ini.');
       return;
     }
+    setQrisModalVisible(true);
+  };
 
-    if (paymentSource === 'saldo' && userBalance < currentCat.billAmount) {
-      Alert.alert(
-        'Saldo Tidak Cukup',
-        `Saldo koperasi Anda Rp ${formatRupiah(userBalance)}. Kurang untuk membayar Rp ${formatRupiah(
-          currentCat.billAmount
-        )}.`
-      );
-      return;
-    }
+  const handleConfirmQRISPayment = () => {
+    setQrisModalVisible(false);
 
     if (onPaymentSuccess) {
       onPaymentSuccess(
         currentCat.billAmount,
         currentCat.name,
         currentCat.id,
-        paymentSource,
+        'saldo',
         customerId
       );
     }
 
     Alert.alert(
       'Pembayaran Berhasil! 🧾',
-      `Tagihan ${currentCat.name} senilai Rp ${formatRupiah(currentCat.billAmount)} berhasil dibayar.\n\nNomor Pelanggan: ${customerId}\nMetode: ${
-        paymentSource === 'saldo' ? 'Saldo Koperasi Anggota' : 'Potong Slip Gaji Payroll PT BIT'
-      }\nNo. Struk: PPOB-${Date.now().toString().slice(-6)}`,
+      `Tagihan ${currentCat.name} senilai Rp ${formatRupiah(currentCat.billAmount)} berhasil dibayar via QRIS.\n\nNomor Pelanggan: ${customerId}\nMetode: QRIS (Lunas)\nNo. Struk: QRIS-${currentCat.id.toUpperCase()}-${Date.now().toString().slice(-6)}`,
       [
         {
           text: 'Kembali ke Beranda',
@@ -172,24 +167,23 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-        {/* Hero Wallet Balance Card */}
+        {/* Hero Card */}
         <View style={styles.heroBalanceCard}>
           <View style={styles.heroGlowCircle} />
           <View style={styles.heroBalanceTop}>
             <View style={styles.heroLabelWrap}>
-              <AppIcon name="wallet" size={15} color="#38bdf8" />
-              <Text style={styles.heroBalanceLabel}>Sumber Dana: Saldo Koperasi</Text>
+              <AppIcon name="qris" size={15} color="#38bdf8" />
+              <Text style={styles.heroBalanceLabel}>Pembayaran Resmi Koperasi</Text>
             </View>
           </View>
 
           <View style={styles.heroBalanceMain}>
-            <Text style={styles.heroCurrency}>Rp</Text>
-            <Text style={styles.heroBalanceAmount}>{formatRupiah(userBalance)}</Text>
+            <Text style={[styles.heroBalanceAmount, { fontSize: 20 }]}>Payment Gateway & Payroll</Text>
           </View>
 
           <View style={styles.heroFooter}>
             <Text style={styles.heroSubText}>
-              Bisa bayar langsung via Saldo Koperasi atau Potong Gaji Payroll
+              Bayar cepat via QRIS, Virtual Account Bank atau Potong Slip Gaji PT BIT
             </Text>
           </View>
         </View>
@@ -233,14 +227,16 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
         <View style={styles.formCard}>
           <View style={styles.inputHeaderRow}>
             <View style={styles.inputHeaderTitleRow}>
-              <AppIcon name="receipt" size={14} color="#1d72db" />
+              <View style={styles.inputHeaderIconBox}>
+                <AppIcon name="receipt" size={12} color="#ffffff" />
+              </View>
               <Text style={styles.inputCardLabel}>NOMOR PELANGGAN / ID TAGIHAN</Text>
             </View>
           </View>
 
           <View style={styles.inputBoxRow}>
             <View style={styles.inputPrefixIcon}>
-              <AppIcon name="receipt" size={15} color="#1d72db" />
+              <AppIcon name="receipt" size={14} color="#ffffff" />
             </View>
             <TextInput
               style={styles.textInputField}
@@ -350,7 +346,7 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
             </View>
 
             <View style={styles.paymentSourceRow}>
-              {/* Option 1: Saldo Koperasi */}
+              {/* Option 1: QRIS / VA Gateway */}
               <TouchableOpacity
                 style={[
                   styles.sourceBtn,
@@ -362,7 +358,7 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
                 <View style={styles.sourceBtnTop}>
                   <View style={[styles.sourceIconBox, paymentSource === 'saldo' && styles.sourceIconBoxActive]}>
                     <AppIcon
-                      name="wallet"
+                      name="qris"
                       size={15}
                       color={paymentSource === 'saldo' ? '#1d72db' : '#64748b'}
                     />
@@ -382,10 +378,10 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
                     paymentSource === 'saldo' && styles.sourceBtnTitleActive,
                   ]}
                 >
-                  Saldo Koperasi
+                  QRIS / VA Bank
                 </Text>
                 <Text style={styles.sourceBtnSub}>
-                  Tersedia: Rp {formatRupiah(userBalance)}
+                  Payment Gateway Resmi Koperasi
                 </Text>
               </TouchableOpacity>
 
@@ -451,6 +447,18 @@ export const TagihanScreen: React.FC<TagihanScreenProps> = ({
           </View>
         )}
       </ScrollView>
+
+      {/* MODAL GENERATE QR CODE TAGIHAN */}
+      <QrisPaymentModal
+        visible={qrisModalVisible}
+        onClose={() => setQrisModalVisible(false)}
+        serviceTitle={`Tagihan ${currentCat.name}`}
+        serviceType={currentCat.id}
+        targetNumber={`No. Pelanggan: ${customerId || currentCat.defaultId}`}
+        customerName={currentCat.customerName}
+        amount={currentCat.billAmount}
+        onPaymentConfirmed={handleConfirmQRISPayment}
+      />
     </View>
   );
 };
@@ -694,14 +702,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     height: 48,
   },
+  inputHeaderIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
   inputPrefixIcon: {
     width: 30,
     height: 30,
-    borderRadius: 8,
-    backgroundColor: '#eff6ff',
+    borderRadius: 9,
+    backgroundColor: '#2563eb',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   textInputField: {
     flex: 1,

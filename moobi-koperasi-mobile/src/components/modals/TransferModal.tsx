@@ -196,7 +196,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
       'Transfer Berhasil! 🚀',
       `Berhasil mengirim Rp ${formatRupiah(numericAmount)} ke ${
         targetName || targetAccount
-      }.\n\nBiaya Admin: Rp 0 (Bebas Biaya Anggota PT BIT)\nNo. Ref: TRF-${Date.now()
+      }.\n\nBiaya Admin: Rp 0 (Anggota PT BIT)\nNo. Ref: TRF-${Date.now()
         .toString()
         .slice(-6)}`,
       [
@@ -223,13 +223,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.titleRow}>
               <View style={styles.headerIconCircle}>
-                <AppIcon name="transfer" size={18} color="#1d72db" />
+                <AppIcon name="transfer" size={17} color="#ffffff" />
               </View>
               <View>
                 <Text style={styles.modalTitle}>
                   {step === 'input' ? 'Transfer Saldo Koperasi' : 'Konfirmasi Transfer'}
                 </Text>
-                <Text style={styles.modalSub}>Bebas Biaya Admin • Instan Real-Time</Text>
+                <Text style={styles.modalSub}>Transfer Antar Anggota • Real-Time</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -675,7 +675,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                   <Text style={styles.confirmAmountLabel}>TOTAL NOMINAL TRANSFER</Text>
                   <Text style={styles.confirmAmountValue}>Rp {formatRupiah(numericAmount)}</Text>
                   <View style={styles.confirmFreeBadge}>
-                    <Text style={styles.confirmFreeBadgeText}>✓ Bebas Biaya Admin Koperasi</Text>
+                    <Text style={styles.confirmFreeBadgeText}>✓ Transfer Resmi Koperasi</Text>
                   </View>
                 </View>
 
@@ -774,10 +774,15 @@ const styles = StyleSheet.create({
   headerIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#eff6ff',
+    borderRadius: 11,
+    backgroundColor: '#2563eb',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
   modalTitle: {
     fontSize: 15,

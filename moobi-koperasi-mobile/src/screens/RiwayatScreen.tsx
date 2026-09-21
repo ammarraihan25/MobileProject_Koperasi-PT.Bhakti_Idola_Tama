@@ -13,6 +13,7 @@ import { colors } from '../theme/colors';
 import { AppIcon, IconType } from '../components/common/AppIcon';
 import { mockTransactions, mockUser } from '../data/mockData';
 import { TransactionItem } from '../types';
+import { PAGUYUBAN_LOGO_DATA_URI } from '../utils/reportAssets';
 
 interface RiwayatScreenProps {
   transactions?: TransactionItem[];
@@ -31,11 +32,9 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
   const filterOptions: { id: string; label: string; icon?: IconType }[] = [
     { id: 'semua', label: 'Semua' },
     { id: 'kantin', label: 'Kantin Pabrik', icon: 'food' },
-    { id: 'elektronik', label: 'Produk BIT', icon: 'elektronik' },
+    { id: 'payroll', label: 'Potong Payroll', icon: 'wallet' },
+    { id: 'simpanan', label: 'Simpanan Sukarela', icon: 'simpanan' },
     { id: 'ppob', label: 'Tagihan & Pulsa', icon: 'zap' },
-    { id: 'transfer', label: 'Transfer & Tarik', icon: 'transfer' },
-    { id: 'simpan_pinjam', label: 'Simpan Pinjam', icon: 'simpanan' },
-    { id: 'payroll', label: 'Potong Gaji', icon: 'wallet' },
   ];
 
   const formatRupiah = (val: number) => {
@@ -57,21 +56,20 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       .map((t, idx) => {
         const isCredit = t.isCredit;
         const amountFormatted = `${isCredit ? '+' : '-'}Rp ${formatRupiah(t.amount)}`;
-        const amountClass = isCredit ? 'amount-in' : 'amount-out';
         return `
           <tr>
-            <td style="text-align: center;">${idx + 1}</td>
-            <td>${t.timestamp || t.dateLabel || '-'}</td>
-            <td style="font-family: monospace; font-weight: 700; color: #1d72db;">${
+            <td style="text-align: center; font-weight: 700;">${idx + 1}</td>
+            <td style="white-space: nowrap;">${t.timestamp || t.dateLabel || '-'}</td>
+            <td style="font-family: monospace; font-weight: 800; color: #000000;">${
               t.referenceNo || `BIT-${t.id}`
             }</td>
-            <td><span class="category-badge">${t.category.toUpperCase()}</span></td>
+            <td style="text-align: center;"><span class="category-badge">${t.category.toUpperCase()}</span></td>
             <td>
-              <strong>${t.title}</strong><br/>
-              <span style="font-size: 8pt; color: #64748b;">${t.description || '-'}</span>
+              <strong style="color: #000000;">${t.title}</strong><br/>
+              <span style="font-size: 8pt; color: #4b5563;">${t.description || '-'}</span>
             </td>
             <td>${t.paymentSource || 'Saldo Koperasi'}</td>
-            <td class="${amountClass}" style="text-align: right;">${amountFormatted}</td>
+            <td style="text-align: right; font-weight: 800; color: #000000; white-space: nowrap;">${amountFormatted}</td>
             <td style="text-align: center;"><span class="status-badge">${
               t.statusText || 'Berhasil'
             }</span></td>
@@ -88,7 +86,7 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm;
+      margin: 10mm 12mm;
     }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -96,62 +94,75 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #0f172a;
+      color: #000000;
       margin: 0;
       padding: 16px;
-      font-size: 9.5pt;
+      font-size: 9pt;
       line-height: 1.35;
       background: #ffffff;
     }
     .header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2.5px solid #1d72db;
+      align-items: center;
+      border-bottom: 2px solid #000000;
       padding-bottom: 12px;
       margin-bottom: 14px;
     }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+    }
     .brand-title {
-      font-size: 16pt;
+      font-size: 15pt;
       font-weight: 900;
-      color: #1d72db;
+      color: #000000;
       margin: 0;
-      letter-spacing: -0.5px;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
     }
     .brand-sub {
       font-size: 9.5pt;
-      font-weight: 700;
-      color: #334155;
+      font-weight: 800;
+      color: #111827;
       margin: 2px 0 0 0;
+      text-transform: uppercase;
     }
     .brand-address {
       font-size: 8pt;
-      color: #64748b;
+      color: #4b5563;
       margin: 2px 0 0 0;
     }
     .doc-meta {
       text-align: right;
       font-size: 8.5pt;
-      color: #475569;
+      color: #000000;
     }
     .doc-badge {
       display: inline-block;
-      background: #eff6ff;
-      color: #1d72db;
-      border: 1px solid #bfdbfe;
-      padding: 3px 8px;
+      background: #ffffff;
+      color: #000000;
+      border: 1.5px solid #000000;
+      padding: 3px 10px;
       border-radius: 4px;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 8pt;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
+      letter-spacing: 0.5px;
     }
     .member-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      background: #ffffff;
+      border: 1.5px solid #000000;
+      border-radius: 6px;
       padding: 10px 14px;
       margin-bottom: 14px;
     }
@@ -159,14 +170,14 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       font-size: 8.5pt;
     }
     .meta-label {
-      color: #64748b;
+      color: #4b5563;
       font-size: 7.5pt;
       text-transform: uppercase;
-      font-weight: 700;
+      font-weight: 800;
     }
     .meta-val {
       font-weight: 800;
-      color: #0f172a;
+      color: #000000;
       margin-top: 2px;
     }
     .summary-grid {
@@ -177,34 +188,22 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
     }
     .summary-card {
       padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
-    .summary-card.in {
-      background: #f0fdf4;
-      border-color: #bbf7d0;
-      color: #166534;
-    }
-    .summary-card.out {
-      background: #fef2f2;
-      border-color: #fecaca;
-      color: #991b1b;
-    }
-    .summary-card.total {
-      background: #eff6ff;
-      border-color: #bfdbfe;
-      color: #1e40af;
+      border-radius: 6px;
+      border: 1.5px solid #000000;
+      background: #ffffff;
+      color: #000000;
     }
     .summary-label {
       font-size: 7.5pt;
       text-transform: uppercase;
-      font-weight: 700;
-      opacity: 0.85;
+      font-weight: 800;
+      color: #4b5563;
     }
     .summary-val {
       font-size: 13pt;
       font-weight: 900;
-      margin-top: 2px;
+      color: #000000;
+      margin-top: 3px;
     }
     table {
       width: 100%;
@@ -213,74 +212,77 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       font-size: 8.5pt;
     }
     th {
-      background: #1d72db;
+      background: #000000;
       color: #ffffff;
       text-align: left;
       padding: 8px 6px;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 8pt;
       text-transform: uppercase;
+      border: 1px solid #000000;
     }
     td {
       padding: 7px 6px;
-      border-bottom: 1px solid #e2e8f0;
+      border: 1px solid #d1d5db;
+      border-top: none;
       vertical-align: top;
+      color: #000000;
     }
     tr:nth-child(even) td {
-      background: #f8fafc;
-    }
-    .amount-in {
-      color: #16a34a;
-      font-weight: 800;
-    }
-    .amount-out {
-      color: #dc2626;
-      font-weight: 800;
+      background: #f9fafb;
     }
     .category-badge {
-      background: #e2e8f0;
-      color: #334155;
-      padding: 2px 5px;
-      border-radius: 4px;
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
+      padding: 2px 6px;
+      border-radius: 3px;
       font-size: 7pt;
-      font-weight: 700;
+      font-weight: 800;
+      display: inline-block;
     }
     .status-badge {
-      background: #dcfce7;
-      color: #15803d;
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
       padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: 3px;
       font-size: 7.5pt;
-      font-weight: 700;
+      font-weight: 800;
+      display: inline-block;
     }
     .footer {
-      margin-top: 20px;
-      padding-top: 10px;
-      border-top: 1px dashed #cbd5e1;
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1.5px solid #000000;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 8pt;
-      color: #64748b;
+      color: #000000;
     }
     .stamp-box {
-      border: 1.5px dashed #1d72db;
-      border-radius: 6px;
-      padding: 6px 12px;
-      color: #1d72db;
-      font-weight: 800;
+      border: 1.5px solid #000000;
+      border-radius: 4px;
+      padding: 6px 14px;
+      color: #000000;
+      font-weight: 900;
       font-size: 8pt;
       text-align: center;
-      background: #f0f7ff;
+      background: #ffffff;
+      letter-spacing: 0.5px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <div>
-      <h1 class="brand-title">PT BAKTI IDOLA TAMA</h1>
-      <p class="brand-sub">SISTEM KOPERASI & MUTASI TRANSAKSI ANGGOTA</p>
-      <p class="brand-address">Kawasan Industri & Pergudangan Terpadu • Laporan Resmi Akuntansi</p>
+    <div class="header-left">
+      <img src="${PAGUYUBAN_LOGO_DATA_URI}" alt="Logo Paguyuban" class="logo-img" />
+      <div>
+        <h1 class="brand-title">PT BAKTI IDOLA TAMA</h1>
+        <p class="brand-sub">SISTEM KOPERASI & MUTASI TRANSAKSI ANGGOTA</p>
+        <p class="brand-address">Kawasan Industri & Pergudangan Terpadu • Laporan Resmi Akuntansi</p>
+      </div>
     </div>
     <div class="doc-meta">
       <div class="doc-badge">REKAP MUTASI RESMI</div>
@@ -309,15 +311,15 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
   </div>
 
   <div class="summary-grid">
-    <div class="summary-card in">
+    <div class="summary-card">
       <div class="summary-label">Total Pemasukan (Kredit)</div>
       <div class="summary-val">+Rp ${formatRupiah(totalPemasukan)}</div>
     </div>
-    <div class="summary-card out">
+    <div class="summary-card">
       <div class="summary-label">Total Pengeluaran (Debit)</div>
       <div class="summary-val">-Rp ${formatRupiah(totalPengeluaran)}</div>
     </div>
-    <div class="summary-card total">
+    <div class="summary-card">
       <div class="summary-label">Jumlah Transaksi Terpilih</div>
       <div class="summary-val">${filteredTransactions.length} Transaksi</div>
     </div>
@@ -328,12 +330,12 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       <tr>
         <th style="width: 25px; text-align: center;">No</th>
         <th style="width: 110px;">Tanggal / Waktu</th>
-        <th style="width: 90px;">No. Referensi</th>
-        <th style="width: 75px;">Kategori</th>
+        <th style="width: 95px;">No. Referensi</th>
+        <th style="width: 75px; text-align: center;">Kategori</th>
         <th>Keterangan / Merchant</th>
         <th style="width: 100px;">Sumber Dana</th>
-        <th style="width: 100px; text-align: right;">Nominal (Rp)</th>
-        <th style="width: 70px; text-align: center;">Status</th>
+        <th style="width: 105px; text-align: right;">Nominal (Rp)</th>
+        <th style="width: 75px; text-align: center;">Status</th>
       </tr>
     </thead>
     <tbody>
@@ -343,8 +345,8 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
 
   <div class="footer">
     <div>
-      <p style="margin: 0;">Dokumen ini diterbitkan secara otomatis dan terverifikasi secara elektronik oleh Sistem Koperasi PT Bakti Idola Tama.</p>
-      <p style="margin: 2px 0 0 0; color: #94a3b8;">ID Autentikasi: SHA256-${Date.now().toString(16).toUpperCase()}</p>
+      <p style="margin: 0; font-weight: 600;">Dokumen ini diterbitkan secara otomatis dan terverifikasi secara elektronik oleh Sistem Koperasi PT Bakti Idola Tama.</p>
+      <p style="margin: 2px 0 0 0; color: #4b5563;">ID Autentikasi: SHA256-${Date.now().toString(16).toUpperCase()}</p>
     </div>
     <div class="stamp-box">
       DIVERIFIKASI RESMI<br/>
@@ -415,15 +417,14 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       let matchCat = true;
       if (selectedFilter !== 'semua') {
         if (selectedFilter === 'kantin') matchCat = t.category === 'kantin';
-        else if (selectedFilter === 'elektronik') matchCat = t.category === 'elektronik';
-        else if (selectedFilter === 'simpan_pinjam') matchCat = t.category === 'simpan_pinjam';
         else if (selectedFilter === 'payroll') matchCat = t.category === 'payroll';
-        else if (selectedFilter === 'ppob') matchCat = t.category === 'ppob';
-        else if (selectedFilter === 'transfer')
+        else if (selectedFilter === 'simpanan')
           matchCat =
-            t.category === 'transfer' ||
             t.category === 'tarik' ||
-            t.category === 'topup';
+            t.category === 'topup' ||
+            t.category === 'simpan_pinjam' ||
+            t.title.toLowerCase().includes('simpanan sukarela');
+        else if (selectedFilter === 'ppob') matchCat = t.category === 'ppob';
       }
 
       // Search filter
@@ -494,8 +495,11 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
       };
     }
     if (item.category === 'payroll') {
+      const isLoan =
+        item.title.toLowerCase().includes('pinjaman') ||
+        item.title.toLowerCase().includes('cicilan');
       return {
-        icon: 'wallet' as IconType,
+        icon: (isLoan ? 'paylater' : 'wallet') as IconType,
         bgColor: '#1d72db',
         iconColor: '#ffffff',
       };
@@ -510,24 +514,17 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
         iconColor: '#ffffff',
       };
     }
-    if (item.category === 'transfer') {
-      return {
-        icon: 'transfer' as IconType,
-        bgColor: '#1d72db',
-        iconColor: '#ffffff',
-      };
-    }
     if (item.category === 'tarik') {
       return {
         icon: 'withdraw' as IconType,
-        bgColor: '#059669',
+        bgColor: '#dc2626',
         iconColor: '#ffffff',
       };
     }
     if (item.category === 'topup' || item.isCredit) {
       return {
-        icon: 'topup' as IconType,
-        bgColor: '#059669',
+        icon: 'plus' as IconType,
+        bgColor: '#16a34a',
         iconColor: '#ffffff',
       };
     }
@@ -726,7 +723,7 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
         {filteredTransactions.length === 0 && (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBox}>
-              <AppIcon name="history" size={32} color="#94a3b8" />
+              <AppIcon name="history" size={26} color="#ffffff" />
             </View>
             <Text style={styles.emptyTitle}>Tidak Ada Transaksi Ditemukan</Text>
             <Text style={styles.emptySub}>
@@ -782,9 +779,11 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                 {/* Status Stamp */}
                 <View style={styles.statusStampBox}>
                   <View style={styles.successIconBox}>
-                    <AppIcon name="check-circle" size={24} color="#16a34a" />
+                    <AppIcon name="check-circle" size={24} color="#ffffff" />
                   </View>
-                  <Text style={styles.receiptStatusText}>Transaksi Berhasil</Text>
+                  <Text style={styles.receiptStatusText}>
+                    {selectedTx.statusText || 'Transaksi Berhasil'}
+                  </Text>
                   <Text style={styles.receiptStatusSub}>
                     Tercatat Otomatis di Jurnal Akuntansi Koperasi
                   </Text>
@@ -806,6 +805,31 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                   </Text>
                 </View>
 
+                {/* Item Breakdown (If Canteen or Electronics Order has items) */}
+                {selectedTx.itemDetails && selectedTx.itemDetails.length > 0 && (
+                  <View style={styles.orderItemsBox}>
+                    <Text style={styles.orderItemsHeader}>Rincian Pesanan / Item</Text>
+                    {selectedTx.itemDetails.map((detail, dIdx) => (
+                      <View key={dIdx} style={styles.orderItemRow}>
+                        <View style={styles.orderItemLeft}>
+                          <Text style={styles.orderItemName}>
+                            {detail.qty ? `${detail.qty}x ` : ''}
+                            {detail.name}
+                          </Text>
+                          {detail.note ? (
+                            <Text style={styles.orderItemNote}>{detail.note}</Text>
+                          ) : null}
+                        </View>
+                        {detail.price ? (
+                          <Text style={styles.orderItemPrice}>
+                            Rp {formatRupiah(detail.price * (detail.qty || 1))}
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
                 {/* Perforated Dashed Line */}
                 <View style={styles.receiptDashedLine} />
 
@@ -824,7 +848,7 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Sumber Dana / Dompet</Text>
+                    <Text style={styles.detailLabel}>Sumber Dana / Metode</Text>
                     <Text style={styles.detailValue}>
                       {selectedTx.paymentSource}
                     </Text>
@@ -837,6 +861,46 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                     </Text>
                   </View>
 
+                  {/* Contextual: Lokasi Stand Kantin / Loket Pengambilan */}
+                  {selectedTx.metadata?.locationOrStand && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Loket / Lokasi Ambil</Text>
+                      <Text style={styles.detailValueHighlight}>
+                        {selectedTx.metadata.locationOrStand}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Contextual: Garansi Resmi Produk */}
+                  {selectedTx.metadata?.warranty && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Garansi Resmi</Text>
+                      <Text style={styles.detailValueGreen}>
+                        {selectedTx.metadata.warranty}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Contextual: Slip Payroll Periode */}
+                  {selectedTx.metadata?.payrollPeriod && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Periode Slip Gaji</Text>
+                      <Text style={styles.detailValueHighlight}>
+                        {selectedTx.metadata.payrollPeriod}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Contextual: Rekening Bank / VA */}
+                  {selectedTx.metadata?.bankAccount && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Tujuan / Rekening</Text>
+                      <Text style={styles.detailValueBold}>
+                        {selectedTx.metadata.bankAccount}
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Keterangan</Text>
                     <Text style={styles.detailValue}>
@@ -845,8 +909,8 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                   </View>
 
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Biaya Layanan / Admin</Text>
-                    <Text style={styles.detailFreeVal}>Rp 0 (Bebas Biaya)</Text>
+                    <Text style={styles.detailLabel}>Biaya Layanan</Text>
+                    <Text style={styles.detailFreeVal}>Rp 0</Text>
                   </View>
                 </View>
 
@@ -854,7 +918,7 @@ export const RiwayatScreen: React.FC<RiwayatScreenProps> = ({
                 <View style={styles.securityBox}>
                   <AppIcon name="lock" size={14} color="#16a34a" />
                   <Text style={styles.securityText}>
-                    Enkripsi SHA-256 Valid • Sistem Moobi 2026
+                    Tervalidasi Resmi • Koperasi PT Bakti Idola Tama
                   </Text>
                 </View>
 
@@ -1310,13 +1374,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f1f5f9',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
   },
   emptyTitle: {
     fontSize: 14,
@@ -1401,15 +1470,18 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   successIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f0fdf4',
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#16a34a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+    marginBottom: 8,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2.5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.5,
+    elevation: 3,
   },
   receiptStatusText: {
     fontSize: 15,
@@ -1485,6 +1557,64 @@ const styles = StyleSheet.create({
     color: '#1d72db',
     fontWeight: '600',
     fontFamily: 'monospace',
+    flex: 0.55,
+    textAlign: 'right',
+  },
+  orderItemsBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 10,
+    gap: 8,
+  },
+  orderItemsHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  orderItemLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+  orderItemName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  orderItemNote: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  orderItemPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  detailValueHighlight: {
+    fontSize: 11,
+    color: '#1d72db',
+    fontWeight: '700',
+    flex: 0.55,
+    textAlign: 'right',
+  },
+  detailValueGreen: {
+    fontSize: 11,
+    color: '#16a34a',
+    fontWeight: '700',
     flex: 0.55,
     textAlign: 'right',
   },

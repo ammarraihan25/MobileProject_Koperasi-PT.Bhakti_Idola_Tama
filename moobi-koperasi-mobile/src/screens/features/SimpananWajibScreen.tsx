@@ -86,10 +86,18 @@ export const SimpananWajibScreen: React.FC<SimpananWajibScreenProps> = ({
           <Text style={styles.balanceAmountText}>Rp {formatRupiah(simpananWajib)}</Text>
 
           <View style={styles.tenureNoticeRow}>
-            <AppIcon name="check" size={13} color="#16a34a" />
-            <Text style={styles.tenureNoticeText}>
-              Masa Kerja: <Text style={styles.boldText}>{masaKerjaText}</Text> (✓ Memenuhi syarat kepesertaan)
-            </Text>
+            <View style={styles.tenureBadgeLeft}>
+              <View style={styles.tenureIconBox}>
+                <AppIcon name="check" size={11} color="#ffffff" />
+              </View>
+              <Text style={styles.tenureNoticeText}>
+                Masa Kerja: <Text style={styles.boldText}>{masaKerjaText}</Text>
+              </Text>
+            </View>
+
+            <View style={styles.tenureStatusPill}>
+              <Text style={styles.tenureStatusPillText}>✓ Memenuhi Syarat</Text>
+            </View>
           </View>
         </View>
 
@@ -97,7 +105,7 @@ export const SimpananWajibScreen: React.FC<SimpananWajibScreenProps> = ({
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionIconCircle}>
-              <AppIcon name="receipt" size={14} color="#1d72db" />
+              <AppIcon name="receipt" size={13} color="#ffffff" />
             </View>
             <Text style={styles.sectionHeading}>Rincian Pemotongan Otomatis Gaji</Text>
           </View>
@@ -135,8 +143,8 @@ export const SimpananWajibScreen: React.FC<SimpananWajibScreenProps> = ({
         {/* 4. CARD KETENTUAN DAN HAK ANGGOTA */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#fef3c7' }]}>
-              <AppIcon name="lock" size={14} color="#d97706" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: '#d97706' }]}>
+              <AppIcon name="lock" size={13} color="#ffffff" />
             </View>
             <Text style={styles.sectionHeading}>Ketentuan & Kebijakan Simpanan Wajib</Text>
           </View>
@@ -325,22 +333,48 @@ const styles = StyleSheet.create({
   tenureNoticeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
     backgroundColor: '#ffffff',
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#fef08a',
   },
+  tenureBadgeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flex: 1,
+  },
+  tenureIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tenureNoticeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: '#475569',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   boldText: {
     fontWeight: '800',
-    color: '#1e293b',
+    color: '#0f172a',
+  },
+  tenureStatusPill: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  tenureStatusPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#15803d',
+    letterSpacing: 0.2,
   },
 
   /* Section Cards */
@@ -369,10 +403,15 @@ const styles = StyleSheet.create({
   sectionIconCircle: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    backgroundColor: '#1d72db',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sectionHeading: {
     fontSize: 12.5,

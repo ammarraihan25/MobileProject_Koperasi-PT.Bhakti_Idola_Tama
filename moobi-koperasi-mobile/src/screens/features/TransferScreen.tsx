@@ -193,7 +193,7 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({
       'Transfer Berhasil! 🚀',
       `Berhasil mengirim Rp ${formatRupiah(numericAmount)} ke ${
         targetName || targetAccount
-      }.\n\nBiaya Admin: Rp 0 (Bebas Biaya Anggota PT BIT)\nNo. Ref: TRF-${Date.now()
+      }.\n\nBiaya Admin: Rp 0 (Anggota PT BIT)\nNo. Ref: TRF-${Date.now()
         .toString()
         .slice(-6)}`,
       [
@@ -714,7 +714,7 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({
               <Text style={styles.confirmAmountLabel}>TOTAL NOMINAL TRANSFER</Text>
               <Text style={styles.confirmAmountValue}>Rp {formatRupiah(numericAmount)}</Text>
               <View style={styles.confirmFreeBadge}>
-                <Text style={styles.confirmFreeBadgeText}>✓ Bebas Biaya Admin Koperasi</Text>
+                <Text style={styles.confirmFreeBadgeText}>✓ Transfer Resmi Koperasi</Text>
               </View>
             </View>
 

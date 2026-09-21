@@ -146,7 +146,7 @@ export const TarikTunaiScreen: React.FC<TarikTunaiScreenProps> = ({
       <View style={styles.topNavBar}>
         <View style={styles.topNavContent}>
           <Text style={styles.topNavTitle}>Tarik Tunai Koperasi</Text>
-          <Text style={styles.topNavSub}>Tarik Tunai Tanpa Kartu • Bebas Biaya Admin</Text>
+          <Text style={styles.topNavSub}>Tarik Tunai Tanpa Kartu • Kasir Koperasi</Text>
         </View>
       </View>
 
@@ -490,7 +490,7 @@ export const TarikTunaiScreen: React.FC<TarikTunaiScreenProps> = ({
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
           <View style={styles.tokenSuccessCard}>
             <View style={styles.tokenIconCircle}>
-              <AppIcon name="tarik" size={24} color="#1d72db" />
+              <AppIcon name="tarik" size={24} color="#ffffff" />
             </View>
 
             <Text style={styles.tokenSuccessCaption}>KODE TOKEN PENARIKAN TUNAI</Text>
@@ -1081,15 +1081,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   tokenIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#eff6ff',
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    borderWidth: 1.5,
-    borderColor: '#bfdbfe',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tokenSuccessCaption: {
     fontSize: 10.5,

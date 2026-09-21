@@ -20,7 +20,6 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 
 // Full-Page Feature Screens
-import { ProdukElektronikScreen } from './src/screens/features/ProdukElektronikScreen';
 import { PulsaScreen } from './src/screens/features/PulsaScreen';
 import {
   PinjamanScreen,
@@ -140,31 +139,26 @@ export default function App() {
 
   // Loan Repayment Handler
   const handleRepayLoan = (amount: number) => {
-    setUserBalance((prev) => {
-      const newBal = Math.max(0, prev - amount);
-      setWalletState((w) => {
-        const newPinjaman = Math.max(0, w.pinjamanAktif - amount);
-        const isLunas = newPinjaman === 0;
-        const newTenor = isLunas ? 0 : w.sisaTenorBulan;
-        const newAngsuran = isLunas ? 0 : Math.round(newPinjaman / Math.max(1, newTenor));
-        return {
-          ...w,
-          simpananSukarela: newBal,
-          pinjamanAktif: newPinjaman,
-          angsuranPerBulan: newAngsuran,
-          sisaTenorBulan: newTenor,
-          plafonPinjaman: Math.min(25000000, w.plafonPinjaman + amount),
-        };
-      });
-      return newBal;
+    setWalletState((w) => {
+      const newPinjaman = Math.max(0, w.pinjamanAktif - amount);
+      const isLunas = newPinjaman === 0;
+      const newTenor = isLunas ? 0 : w.sisaTenorBulan;
+      const newAngsuran = isLunas ? 0 : Math.round(newPinjaman / Math.max(1, newTenor));
+      return {
+        ...w,
+        pinjamanAktif: newPinjaman,
+        angsuranPerBulan: newAngsuran,
+        sisaTenorBulan: newTenor,
+        plafonPinjaman: Math.min(25000000, w.plafonPinjaman + amount),
+      };
     });
 
     recordTransaction(
       'Pembayaran Angsuran Pinjaman',
       'simpan_pinjam',
       amount,
-      'Simpanan Sukarela',
-      'Pembayaran / pelunasan cicilan pinjaman PT Bakti Idola Tama',
+      'VA Bank / QRIS Pihak Ke-3',
+      'Pembayaran / pelunasan cicilan pinjaman PT Bakti Idola Tama via Payment Gateway',
       'simpanan',
       false
     );
@@ -220,34 +214,6 @@ export default function App() {
           />
         );
 
-      // Dedicated Feature Screens
-      case 'produk':
-        return (
-          <ProdukElektronikScreen
-            onBack={() => setCurrentScreen('beranda')}
-            userBalance={userBalance}
-            onPurchaseSuccess={(totalPrice, itemsCount, paymentMethod, itemsSummary) => {
-              if (paymentMethod === 'saldo') {
-                setUserBalance((prev) => {
-                  const newBal = Math.max(0, prev - totalPrice);
-                  setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
-                  return newBal;
-                });
-              }
-              recordTransaction(
-                itemsSummary || `Pembelian Elektronik (${itemsCount} Barang)`,
-                'elektronik',
-                totalPrice,
-                paymentMethod === 'saldo' ? 'Simpanan Sukarela' : 'Potong Gaji Payroll',
-                `Pembelian Produk Elektronik PT BIT via ${
-                  paymentMethod === 'saldo' ? 'Simpanan Sukarela' : 'Potong Gaji Payroll'
-                }`,
-                'elektronik',
-                false
-              );
-            }}
-          />
-        );
 
       case 'pulsa':
       case 'token':
@@ -272,11 +238,6 @@ export default function App() {
               setPaidBills((prev) => (prev.includes('pdam') ? prev : [...prev, 'pdam']));
             }}
             onPurchaseSuccess={(amt, product, category, targetNumber) => {
-              setUserBalance((prev) => {
-                const newBal = Math.max(0, prev - amt);
-                setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
-                return newBal;
-              });
               const getIcon = () => {
                 switch (category) {
                   case 'token':
@@ -295,8 +256,8 @@ export default function App() {
                 `${product}`,
                 category === 'emoney' ? 'topup' : 'ppob',
                 amt,
-                'Simpanan Sukarela',
-                `Pembayaran transaksi ${targetNumber}`,
+                'Payment Gateway (Pihak Ke-3)',
+                `Pembayaran transaksi ${targetNumber} via Payment Gateway Pihak Ke-3`,
                 getIcon(),
                 false
               );
@@ -346,20 +307,19 @@ export default function App() {
             onBack={() => setCurrentScreen('beranda')}
             userBalance={userBalance}
             onOrderSuccess={(amt, itemsCount, itemsSummary) => {
-              setUserBalance((prev) => {
-                const newBal = Math.max(0, prev - amt);
-                setWalletState((w) => ({ ...w, simpananSukarela: newBal }));
-                return newBal;
-              });
               recordTransaction(
                 itemsSummary || `Kantin BIT (${itemsCount} Menu)`,
                 'kantin',
                 amt,
-                'Simpanan Sukarela',
-                `Pesanan Kantin PT BIT - ${itemsCount} porsi makanan & minuman`,
+                'Payment Gateway (Pihak Ke-3)',
+                `Pesanan Kantin PT BIT - ${itemsCount} porsi via Payment Gateway Pihak Ke-3`,
                 'food',
                 false
               );
+            }}
+            onNavigateRiwayat={() => {
+              setCurrentTab('riwayat');
+              setCurrentScreen('riwayat');
             }}
           />
         );

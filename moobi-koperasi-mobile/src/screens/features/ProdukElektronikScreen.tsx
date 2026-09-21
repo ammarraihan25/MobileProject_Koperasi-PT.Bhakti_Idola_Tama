@@ -23,13 +23,31 @@ interface ProdukElektronikScreenProps {
     paymentMethod: string,
     itemsSummary: string
   ) => void;
+  onNavigateRiwayat?: () => void;
+}
+
+interface ElektronikOrderRecord {
+  id: string;
+  ticketNo: string;
+  itemsCount: number;
+  totalAmount: number;
+  paymentSource: string;
+  pickupLocName: string;
+  timestamp: string;
+  notes?: string;
+  itemsList: { name: string; brand?: string; qty: number; price: number }[];
+  status: 'menunggu_pembayaran' | 'selesai';
 }
 
 export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
   onBack,
   userBalance,
   onPurchaseSuccess,
+  onNavigateRiwayat,
 }) => {
+  const [activeTab, setActiveTab] = useState<'katalog' | 'orders'>('katalog');
+  const [ordersList, setOrdersList] = useState<ElektronikOrderRecord[]>([]);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [selectedBrand, setSelectedBrand] = useState<string>('Semua');
@@ -40,24 +58,17 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
 
   // Checkout Flow States
   const [isCheckoutModalVisible, setIsCheckoutModalVisible] = useState<boolean>(false);
-  const [isSuccessTicketVisible, setIsSuccessTicketVisible] = useState<boolean>(false);
   const [pickupLocation, setPickupLocation] = useState<'gedung_a' | 'gedung_b'>('gedung_a');
-  const [paymentMethod, setPaymentMethod] = useState<'saldo' | 'payroll_1x' | 'payroll_3x' | 'payroll_6x'>('saldo');
+  const [selectedOrderToComplete, setSelectedOrderToComplete] = useState<ElektronikOrderRecord | null>(null);
+  const [isConfirmPickupModalVisible, setIsConfirmPickupModalVisible] = useState<boolean>(false);
+  const [isCompletedSuccessModalVisible, setIsCompletedSuccessModalVisible] = useState<boolean>(false);
+  const [lastCompletedOrder, setLastCompletedOrder] = useState<ElektronikOrderRecord | null>(null);
 
-  const [completedOrderTicket, setCompletedOrderTicket] = useState<{
-    ticketNo: string;
-    itemsCount: number;
-    totalAmount: number;
-    paymentSource: string;
-    pickupLocName: string;
-    itemsList: { name: string; qty: number; price: number }[];
-  } | null>(null);
-
-  const categories: { key: string; label: string; icon: string }[] = [
-    { key: 'Semua', label: 'Semua Kategori', icon: '⚡' },
-    { key: 'dapur', label: 'Peralatan Dapur', icon: '🍳' },
-    { key: 'living', label: 'Living & Rumah', icon: '🏠' },
-    { key: 'cooling', label: 'Pendingin & Kipas', icon: '💨' },
+  const categories: { key: string; label: string }[] = [
+    { key: 'Semua', label: 'Semua Kategori' },
+    { key: 'dapur', label: 'Peralatan Dapur' },
+    { key: 'living', label: 'Living & Rumah' },
+    { key: 'cooling', label: 'Pendingin & Kipas' },
   ];
 
   const brands: { key: string; label: string; tag: string }[] = [
@@ -123,339 +134,654 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
   };
 
   const handleConfirmPayment = () => {
-    if (paymentMethod === 'saldo' && userBalance < totalPrice) {
-      Alert.alert(
-        'Saldo Tidak Mencukupi',
-        `Saldo Koperasi Anda (Rp ${formatRupiah(
-          userBalance
-        )}) tidak cukup untuk membayar pesanan sebesar Rp ${formatRupiah(
-          totalPrice
-        )}. Silakan gunakan opsi Potong Gaji Payroll atau isi saldo terlebih dahulu.`
-      );
-      return;
-    }
-
     const ticketNo = `BIT-ELX-#${Math.floor(10000 + Math.random() * 90000)}`;
+    const now = new Date();
+    const timeFormatted = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
 
-    const itemsSummary = Object.entries(cart).map(([id, qty]) => {
+    const itemsSummaryList = Object.entries(cart).map(([id, qty]) => {
       const p = mockElektronikProducts.find((item) => item.id === id);
       return {
         name: p ? p.name : 'Produk BIT',
+        brand: p ? p.brand : '',
         qty,
         price: p ? p.price : 0,
       };
     });
 
-    let paymentLabel = 'Saldo Utama Koperasi (Lunas)';
-    if (paymentMethod === 'payroll_1x') {
-      paymentLabel = 'Potong Slip Gaji 1x (Bulan Depan)';
-    } else if (paymentMethod === 'payroll_3x') {
-      paymentLabel = `Potong Slip Gaji 3x Cicilan (Rp ${formatRupiah(Math.round(totalPrice / 3))}/bln)`;
-    } else if (paymentMethod === 'payroll_6x') {
-      paymentLabel = `Potong Slip Gaji 6x Cicilan (Rp ${formatRupiah(Math.round(totalPrice / 6))}/bln)`;
-    }
+    const paymentLabel = 'Pembayaran Pihak Ke-3';
 
     const locLabel =
       pickupLocation === 'gedung_a'
         ? 'Loket Koperasi Pabrik Gedung A (Depan HRD)'
         : 'Loket Koperasi Pabrik Gedung B (Area Produksi)';
 
-    const summaryText = itemsSummary.map((i) => `${i.qty}x ${i.name}`).join(', ');
-    if (onPurchaseSuccess) {
-      onPurchaseSuccess(totalPrice, totalItems, paymentLabel, summaryText);
-    }
-
-    setCompletedOrderTicket({
+    const newOrder: ElektronikOrderRecord = {
+      id: `ELX-${Date.now()}`,
       ticketNo,
       itemsCount: totalItems,
       totalAmount: totalPrice,
       paymentSource: paymentLabel,
       pickupLocName: locLabel,
-      itemsList: itemsSummary,
-    });
+      timestamp: `Hari Ini, ${timeFormatted}`,
+      notes: notes.trim() || undefined,
+      itemsList: itemsSummaryList,
+      status: 'menunggu_pembayaran',
+    };
 
-    setIsCheckoutModalVisible(false);
-    setIsSuccessTicketVisible(true);
+    setOrdersList((prev) => [newOrder, ...prev]);
     setCart({});
     setNotes('');
+    setIsCheckoutModalVisible(false);
+    setActiveTab('orders'); // Langsung beralih ke daftar pesanan yang dipesan
+  };
+
+  const handleOpenCompleteOrderModal = (order: ElektronikOrderRecord) => {
+    setSelectedOrderToComplete(order);
+    setIsConfirmPickupModalVisible(true);
+  };
+
+  const handleExecuteCompleteOrder = () => {
+    if (!selectedOrderToComplete) return;
+    const orderId = selectedOrderToComplete.id;
+    const target = selectedOrderToComplete;
+
+    setOrdersList((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: 'selesai' } : o))
+    );
+
+    const summaryText = target.itemsList.map((i) => `${i.qty}x ${i.name}`).join(', ');
+    if (onPurchaseSuccess) {
+      onPurchaseSuccess(target.totalAmount, target.itemsCount, 'Pembayaran Pihak Ke-3', summaryText);
+    }
+
+    setLastCompletedOrder(target);
+    setIsConfirmPickupModalVisible(false);
+    setIsCompletedSuccessModalVisible(true);
   };
 
   return (
     <View style={styles.screenContainer}>
       {/* 1. Top Bar Navigation */}
       <View style={styles.topNavBar}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <AppIcon name="chevron-left" size={20} color="#ffffff" />
-        </TouchableOpacity>
-        <View style={styles.topNavCenter}>
-          <Text style={styles.topNavTitle}>Katalog Produk Elektronik</Text>
-          <Text style={styles.topNavSub}>Produk Resmi Miyako, Rinnai, Shimizu • PT BIT</Text>
+        <View style={styles.topNavHeaderRow}>
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <AppIcon name="chevron-left" size={20} color="#ffffff" />
+          </TouchableOpacity>
+          <View style={styles.topNavCenter}>
+            <Text style={styles.topNavTitle}>Katalog Produk Elektronik</Text>
+            <Text style={styles.topNavSub}>Produk Resmi Miyako, Rinnai, Shimizu • PT BIT</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleOpenCheckout}
+            style={styles.cartIconBtn}
+            activeOpacity={0.75}
+          >
+            <AppIcon name="shopping-bag" size={18} color="#ffffff" />
+            {totalItems > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{totalItems}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={handleOpenCheckout}
-          style={styles.cartIconBtn}
-          activeOpacity={0.75}
-        >
-          <AppIcon name="shopping-bag" size={18} color="#ffffff" />
-          {totalItems > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{totalItems}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+
+        {/* Tab Switcher: Katalog vs Pesanan Saya */}
+        <View style={styles.screenNavTabs}>
+          <TouchableOpacity
+            style={[styles.screenNavTabItem, activeTab === 'katalog' && styles.screenNavTabItemActive]}
+            onPress={() => setActiveTab('katalog')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.screenNavTabText,
+                activeTab === 'katalog' && styles.screenNavTabTextActive,
+              ]}
+            >
+              Katalog Produk
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.screenNavTabItem,
+              activeTab === 'orders' && styles.screenNavTabItemActive,
+            ]}
+            onPress={() => setActiveTab('orders')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.screenNavTabText,
+                activeTab === 'orders' && styles.screenNavTabTextActive,
+              ]}
+            >
+              Pesanan Saya
+            </Text>
+            {ordersList.length > 0 && (
+              <View style={styles.tabBadgeCounter}>
+                <Text style={styles.tabBadgeCounterText}>{ordersList.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollBody}
-      >
-        {/* 2. Integrated Search & Filter Section */}
-        <View style={styles.searchFilterContainer}>
-          {/* Search Input Box */}
-          <View style={styles.searchBar}>
-            <AppIcon name="search" size={17} color="#64748b" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cari produk (Miyako, Rinnai, Blender...)"
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {searchQuery !== '' && (
+      {/* ============================================================ */}
+      {/* TAB 1: KATALOG PRODUK ELEKTRONIK */}
+      {/* ============================================================ */}
+      {activeTab === 'katalog' ? (
+        <>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollBody}
+          >
+            {/* Banner info pesanan aktif jika ada pesanan */}
+            {ordersList.length > 0 && (
               <TouchableOpacity
-                onPress={() => setSearchQuery('')}
-                style={styles.searchClearBtn}
-                activeOpacity={0.7}
+                style={styles.activeOrderNotifyBanner}
+                onPress={() => setActiveTab('orders')}
+                activeOpacity={0.85}
               >
-                <AppIcon name="x" size={13} color="#64748b" />
+                <View style={styles.activeOrderNotifyLeft}>
+                  <View style={styles.notifyPulseDot} />
+                  <Text style={styles.activeOrderNotifyText}>
+                    Kamu memiliki <Text style={{ fontWeight: '800' }}>{ordersList.length} pesanan barang aktif</Text> di loket koperasi.
+                  </Text>
+                </View>
+                <Text style={styles.activeOrderNotifyLink}>Lihat Pesanan ›</Text>
               </TouchableOpacity>
             )}
-          </View>
 
-          {/* Dual Dropdown Filter Buttons */}
-          <View style={styles.filterDropdownRow}>
-            {/* Filter Merk */}
-            <TouchableOpacity
-              style={[
-                styles.filterDropdownBtn,
-                selectedBrand !== 'Semua' && styles.filterDropdownBtnActive,
-              ]}
-              onPress={() => setIsBrandModalVisible(true)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.filterDropdownLeft}>
-                <Text style={styles.filterDropdownPrefix}>Merk:</Text>
-                <Text
-                  style={[
-                    styles.filterDropdownValue,
-                    selectedBrand !== 'Semua' && styles.filterDropdownValueActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {selectedBrand === 'Semua' ? 'Semua Merk' : selectedBrand}
-                </Text>
+            {/* 2. Integrated Search & Filter Section */}
+            <View style={styles.searchFilterContainer}>
+              {/* Search Input Box */}
+              <View style={styles.searchBar}>
+                <AppIcon name="search" size={17} color="#64748b" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Cari produk (Miyako, Rinnai, Blender...)"
+                  placeholderTextColor="#94a3b8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                />
+                {searchQuery !== '' && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery('')}
+                    style={styles.searchClearBtn}
+                    activeOpacity={0.7}
+                  >
+                    <AppIcon name="x" size={13} color="#64748b" />
+                  </TouchableOpacity>
+                )}
               </View>
-              <AppIcon
-                name="chevron-down"
-                size={13}
-                color={selectedBrand !== 'Semua' ? '#1d72db' : '#64748b'}
-              />
-            </TouchableOpacity>
 
-            {/* Filter Kategori Produk */}
-            <TouchableOpacity
-              style={[
-                styles.filterDropdownBtn,
-                selectedCategory !== 'Semua' && styles.filterDropdownBtnActive,
-              ]}
-              onPress={() => setIsCategoryModalVisible(true)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.filterDropdownLeft}>
-                <Text style={styles.filterDropdownPrefix}>Kategori:</Text>
-                <Text
+              {/* Dual Dropdown Filter Buttons */}
+              <View style={styles.filterDropdownRow}>
+                {/* Filter Merk */}
+                <TouchableOpacity
                   style={[
-                    styles.filterDropdownValue,
-                    selectedCategory !== 'Semua' && styles.filterDropdownValueActive,
+                    styles.filterDropdownBtn,
+                    selectedBrand !== 'Semua' && styles.filterDropdownBtnActive,
                   ]}
-                  numberOfLines={1}
+                  onPress={() => setIsBrandModalVisible(true)}
+                  activeOpacity={0.75}
                 >
-                  {categories.find((c) => c.key === selectedCategory)?.label || 'Semua'}
-                </Text>
-              </View>
-              <AppIcon
-                name="chevron-down"
-                size={13}
-                color={selectedCategory !== 'Semua' ? '#1d72db' : '#64748b'}
-              />
-            </TouchableOpacity>
-          </View>
+                  <View style={styles.filterDropdownLeft}>
+                    <Text style={styles.filterDropdownPrefix}>Merk:</Text>
+                    <Text
+                      style={[
+                        styles.filterDropdownValue,
+                        selectedBrand !== 'Semua' && styles.filterDropdownValueActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {selectedBrand === 'Semua' ? 'Semua Merk' : selectedBrand}
+                    </Text>
+                  </View>
+                  <AppIcon
+                    name="chevron-down"
+                    size={13}
+                    color={selectedBrand !== 'Semua' ? '#1d72db' : '#64748b'}
+                  />
+                </TouchableOpacity>
 
-          {/* Filter Status / Reset Action */}
-          {(searchQuery !== '' || selectedBrand !== 'Semua' || selectedCategory !== 'Semua') && (
-            <View style={styles.filterStatusRow}>
-              <Text style={styles.filterStatusText}>
-                Ditemukan <Text style={styles.filterStatusHighlight}>{filteredProducts.length}</Text> produk
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedBrand('Semua');
-                  setSelectedCategory('Semua');
-                }}
-                style={styles.resetFilterBtn}
-                activeOpacity={0.7}
+                {/* Filter Kategori Produk */}
+                <TouchableOpacity
+                  style={[
+                    styles.filterDropdownBtn,
+                    selectedCategory !== 'Semua' && styles.filterDropdownBtnActive,
+                  ]}
+                  onPress={() => setIsCategoryModalVisible(true)}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.filterDropdownLeft}>
+                    <Text style={styles.filterDropdownPrefix}>Kategori:</Text>
+                    <Text
+                      style={[
+                        styles.filterDropdownValue,
+                        selectedCategory !== 'Semua' && styles.filterDropdownValueActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {selectedCategory === 'Semua'
+                        ? 'Semua Kategori'
+                        : categories.find((c) => c.key === selectedCategory)?.label || selectedCategory}
+                    </Text>
+                  </View>
+                  <AppIcon
+                    name="chevron-down"
+                    size={13}
+                    color={selectedCategory !== 'Semua' ? '#1d72db' : '#64748b'}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Active Filter Chips */}
+              {(selectedCategory !== 'Semua' || selectedBrand !== 'Semua' || searchQuery !== '') && (
+                <View style={styles.activeFiltersRow}>
+                  {selectedBrand !== 'Semua' && (
+                    <View style={styles.activeFilterChip}>
+                      <Text style={styles.activeFilterChipText}>Merk: {selectedBrand}</Text>
+                      <TouchableOpacity onPress={() => setSelectedBrand('Semua')} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <AppIcon name="x" size={11} color="#1d72db" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {selectedCategory !== 'Semua' && (
+                    <View style={styles.activeFilterChip}>
+                      <Text style={styles.activeFilterChipText}>
+                        Kategori: {categories.find((c) => c.key === selectedCategory)?.label}
+                      </Text>
+                      <TouchableOpacity onPress={() => setSelectedCategory('Semua')} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <AppIcon name="x" size={11} color="#1d72db" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {searchQuery !== '' && (
+                    <View style={styles.activeFilterChip}>
+                      <Text style={styles.activeFilterChipText}>"{searchQuery}"</Text>
+                      <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <AppIcon name="x" size={11} color="#1d72db" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedBrand('Semua');
+                      setSelectedCategory('Semua');
+                      setSearchQuery('');
+                    }}
+                    style={styles.resetFilterBtn}
+                  >
+                    <Text style={styles.resetFilterText}>Reset</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* 3. Category Horizontal Pills Selector */}
+            <View style={styles.categoryPillsWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryPillsScroll}
               >
-                <AppIcon name="x" size={11} color="#dc2626" />
-                <Text style={styles.resetFilterText}>Reset Filter</Text>
+                {categories.map((cat) => {
+                  const isSelected = selectedCategory === cat.key;
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      style={[
+                        styles.categoryPill,
+                        isSelected && styles.categoryPillActive,
+                      ]}
+                      onPress={() => setSelectedCategory(cat.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryPillText,
+                          isSelected && styles.categoryPillTextActive,
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* 4. Official Warranty Banner PT BIT */}
+            <View style={styles.warrantyBanner}>
+              <View style={styles.warrantyIconBox}>
+                <AppIcon name="check-circle" size={18} color="#16a34a" />
+              </View>
+              <View style={styles.warrantyTextGroup}>
+                <Text style={styles.warrantyTitle}>Jaminan 100% Produk Asli & Bergaransi Resmi</Text>
+                <Text style={styles.warrantySub}>
+                  Pengambilan langsung di Loket Koperasi Pabrik PT Bakti Idola Tama
+                </Text>
+              </View>
+            </View>
+
+            {/* Active Orders Banner if any */}
+            {ordersList.length > 0 && (
+              <TouchableOpacity
+                style={styles.activeOrderNotifyBanner}
+                onPress={() => setActiveTab('orders')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.activeOrderNotifyLeft}>
+                  <View style={styles.notifyPulseDot} />
+                  <Text style={styles.activeOrderNotifyText}>
+                    Anda memiliki <Text style={{ fontWeight: '800' }}>{ordersList.length} pesanan aktif</Text>
+                  </Text>
+                </View>
+                <Text style={styles.activeOrderNotifyLink}>Lihat Pesanan ›</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* 6. Product Grid */}
+            <View style={styles.productGrid}>
+              {filteredProducts.map((item: ElektronikProductItem) => {
+                const count = cart[item.id] || 0;
+
+                return (
+                  <View key={item.id} style={styles.productCard}>
+                    {/* Top Badge: Brand & Diskon */}
+                    <View style={styles.productCardTopBadgeRow}>
+                      <View
+                        style={[
+                          styles.brandBadge,
+                          item.brand === 'Miyako'
+                            ? styles.brandBadgeMiyako
+                            : item.brand === 'Rinnai'
+                            ? styles.brandBadgeRinnai
+                            : styles.brandBadgeShimizu,
+                        ]}
+                      >
+                        <Text style={styles.brandBadgeText}>{item.brand.toUpperCase()}</Text>
+                      </View>
+                      {item.discountBadge && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountBadgeText}>{item.discountBadge}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Product Image */}
+                    <View style={styles.productImageContainer}>
+                      <Image
+                        source={item.image}
+                        style={styles.productImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+
+                    {/* Product Info */}
+                    <View style={styles.productInfoWrap}>
+                      <Text style={styles.productTitle} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.productSpecs} numberOfLines={1}>
+                        {item.specs}
+                      </Text>
+
+                      {/* Pricing */}
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceFinal}>Rp {formatRupiah(item.price)}</Text>
+                        {item.originalPrice && (
+                          <Text style={styles.priceOriginal}>
+                            Rp {formatRupiah(item.originalPrice)}
+                          </Text>
+                        )}
+                      </View>
+
+                      {item.cicilanPerBulan && (
+                        <View style={styles.cicilanPill}>
+                          <AppIcon name="wallet" size={10} color="#1d72db" />
+                          <Text style={styles.cicilanPillText}>
+                            Cicilan Rp {formatRupiah(item.cicilanPerBulan)}/bln
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Action Button: Add to Cart / Qty Stepper */}
+                      <View style={styles.cardActionRow}>
+                        {count > 0 ? (
+                          <View style={styles.quantityControlRow}>
+                            <TouchableOpacity
+                              style={styles.qtyBtnMinus}
+                              onPress={() => handleRemoveFromCart(item.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.qtyBtnText}>−</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.qtyNumberText}>{count}</Text>
+                            <TouchableOpacity
+                              style={styles.qtyBtnPlus}
+                              onPress={() => handleAddToCart(item.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.qtyBtnText, { color: '#ffffff' }]}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.addBtn}
+                            onPress={() => handleAddToCart(item.id)}
+                            activeOpacity={0.85}
+                          >
+                            <AppIcon name="shopping-bag" size={12} color="#ffffff" />
+                            <Text style={styles.addBtnText}>+ Pesan</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Floating Sticky Cart Bar */}
+          {totalItems > 0 && (
+            <View style={styles.floatingCartBar}>
+              <View style={styles.floatingCartLeft}>
+                <View style={styles.floatingCartBadge}>
+                  <Text style={styles.floatingCartBadgeText}>{totalItems} Barang</Text>
+                </View>
+                <View style={styles.floatingPriceRow}>
+                  <Text style={styles.floatingPriceLabel}>Total:</Text>
+                  <Text style={styles.floatingPriceNumber}>Rp {formatRupiah(totalPrice)}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.checkoutBtn}
+                onPress={handleOpenCheckout}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.checkoutBtnText}>Lihat Pesanan ›</Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </>
+      ) : (
+        /* ============================================================ */
+        /* TAB 2: PESANAN SAYA (BARANG ELEKTRONIK YANG SUDAH DIPESAN) */
+        /* ============================================================ */
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.ordersScrollBody}
+        >
+          {ordersList.length > 0 ? (
+            <>
+              <View style={styles.ordersListSection}>
+                <Text style={styles.ordersSectionTitle}>PESANAN PRODUK AKTIF</Text>
 
-        {/* 4. Product List or Empty State */}
-        {filteredProducts.length === 0 ? (
-          <View style={styles.emptySearchWrap}>
-            <View style={styles.emptySearchIconWrap}>
-              <AppIcon name="search" size={32} color="#94a3b8" />
-            </View>
-            <Text style={styles.emptySearchTitle}>Produk Tidak Ditemukan</Text>
-            <Text style={styles.emptySearchSub}>
-              Tidak ada produk yang cocok dengan kata kunci "{searchQuery}" atau filter yang dipilih.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyResetBtn}
-              onPress={() => {
-                setSearchQuery('');
-                setSelectedBrand('Semua');
-                setSelectedCategory('Semua');
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.emptyResetBtnText}>Tampilkan Semua Produk</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.productGrid}>
-            {filteredProducts.map((item) => {
-              const qtyInCart = cart[item.id] || 0;
-              return (
-                <View key={item.id} style={styles.productCard}>
-                {/* Brand & Discount Tag Row */}
-                <View style={styles.productCardTopBadgeRow}>
-                  <View
-                    style={[
-                      styles.brandBadge,
-                      item.brand === 'Miyako'
-                        ? styles.brandBadgeMiyako
-                        : item.brand === 'Rinnai'
-                        ? styles.brandBadgeRinnai
-                        : styles.brandBadgeShimizu,
-                    ]}
-                  >
-                    <Text style={styles.brandBadgeText}>{item.brand.toUpperCase()}</Text>
-                  </View>
-
-                  {item.discountBadge && (
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountBadgeText}>{item.discountBadge}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Product Image Box */}
-                <View style={styles.productImageContainer}>
-                  <Image source={item.image} style={styles.productImage} resizeMode="contain" />
-                </View>
-
-                {/* Product Info */}
-                <View style={styles.productInfoWrap}>
-                  <Text style={styles.productTitle} numberOfLines={2}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.productSpecs} numberOfLines={1}>
-                    {item.specs}
-                  </Text>
-
-                  {/* Price Row */}
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceFinal}>Rp {formatRupiah(item.price)}</Text>
-                    {item.originalPrice > item.price && (
-                      <Text style={styles.priceOriginal}>Rp {formatRupiah(item.originalPrice)}</Text>
-                    )}
-                  </View>
-
-                  {/* Cicilan Pill */}
-                  <View style={styles.cicilanPill}>
-                    <AppIcon name="receipt" size={10} color="#1d72db" />
-                    <Text style={styles.cicilanPillText}>
-                      Cicilan Rp {formatRupiah(item.cicilanPerBulan)}/bln
-                    </Text>
-                  </View>
-
-                  {/* Action / Quantity Selector Button */}
-                  <View style={styles.cardActionRow}>
-                    {qtyInCart === 0 ? (
-                      <TouchableOpacity
-                        style={styles.addBtn}
-                        onPress={() => handleAddToCart(item.id)}
-                        activeOpacity={0.8}
+                {ordersList.map((order) => (
+                  <View key={order.id} style={styles.orderTicketCard}>
+                    {/* Header Ticket */}
+                    <View style={styles.orderTicketHeader}>
+                      <View>
+                        <Text style={styles.orderTicketNoLabel}>KODE PENGAMBILAN BARANG</Text>
+                        <Text style={styles.orderTicketNoVal}>{order.ticketNo}</Text>
+                        <Text style={styles.orderTicketStand}>{order.pickupLocName}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.orderStatusBadge,
+                          order.status === 'selesai' && styles.orderStatusBadgeSuccess,
+                        ]}
                       >
-                        <AppIcon name="shopping-bag" size={13} color="#ffffff" />
-                        <Text style={styles.addBtnText}>+ Keranjang</Text>
-                      </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.orderStatusBadgeText,
+                            order.status === 'selesai' && styles.orderStatusBadgeTextSuccess,
+                          ]}
+                        >
+                          {order.status === 'selesai' ? '✅ Barang Diambil' : '⏳ Siap Diambil'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Barcode Visual */}
+                    <View style={styles.barcodeBox}>
+                      <View style={styles.barcodeBarsRow}>
+                        {[5, 2, 7, 3, 9, 4, 6, 2, 8, 5, 3, 7, 2, 6, 4, 9, 3, 5, 7].map((w, i) => (
+                          <View
+                            key={i}
+                            style={{
+                              width: w,
+                              height: 32,
+                              backgroundColor: '#0f172a',
+                              marginHorizontal: 1.5,
+                              borderRadius: 1,
+                            }}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.barcodeSub}>Scan Barcode di Loket Koperasi PT BIT</Text>
+                    </View>
+
+                    <View style={styles.orderTicketDivider} />
+
+                    {/* Daftar Produk yang Dipesan */}
+                    <Text style={styles.orderItemsHeading}>PRODUK YANG DIPESAN</Text>
+                    <View style={styles.orderItemsStack}>
+                      {order.itemsList.map((item, idx) => (
+                        <View key={idx} style={styles.orderedItemRow}>
+                          <View style={styles.orderedItemPlaceholderThumb}>
+                            <AppIcon name="bolt" size={16} color="#1d72db" />
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={styles.orderedItemName}>{item.name}</Text>
+                            {item.brand ? <Text style={styles.orderedItemBrand}>{item.brand}</Text> : null}
+                            <Text style={styles.orderedItemSub}>
+                              {item.qty} Unit x Rp {formatRupiah(item.price)}
+                            </Text>
+                          </View>
+                          <Text style={styles.orderedItemSubtotal}>
+                            Rp {formatRupiah(item.price * item.qty)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {order.notes && (
+                      <View style={styles.orderNotesCard}>
+                        <Text style={styles.orderNotesLabel}>Catatan: </Text>
+                        <Text style={styles.orderNotesVal}>{order.notes}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.orderTicketDivider} />
+
+                    {/* Summary Row */}
+                    <View style={styles.orderSummaryMetaRow}>
+                      <Text style={styles.orderMetaLabel}>Waktu Pesan:</Text>
+                      <Text style={styles.orderMetaVal}>{order.timestamp}</Text>
+                    </View>
+                    <View style={styles.orderSummaryMetaRow}>
+                      <Text style={styles.orderMetaLabel}>Status Pembayaran:</Text>
+                      {order.status === 'selesai' ? (
+                        <Text style={styles.orderPaymentMetaBadgeSuccess}>Sudah Dibayar (Lunas)</Text>
+                      ) : (
+                        <Text style={styles.orderPaymentMetaBadgePending}>Menunggu Pembayaran</Text>
+                      )}
+                    </View>
+                    <View style={styles.orderSummaryMetaRow}>
+                      <Text style={styles.orderTotalLabel}>Total Pembayaran:</Text>
+                      <Text style={styles.orderTotalAmount}>Rp {formatRupiah(order.totalAmount)}</Text>
+                    </View>
+
+                    {/* Action Button & Info */}
+                    {order.status === 'menunggu_pembayaran' ? (
+                      <>
+                        <View style={styles.loketInfoBox}>
+                          <AppIcon name="info" size={13} color="#b45309" />
+                          <Text style={styles.loketInfoPendingText}>
+                            Tunjukkan kode barcode ini di Loket Koperasi. Lakukan pembayaran via pihak ke-3 saat serah terima barang.
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.confirmPickupPayBtn}
+                          onPress={() => handleOpenCompleteOrderModal(order)}
+                          activeOpacity={0.85}
+                        >
+                          <AppIcon name="check-circle" size={15} color="#ffffff" />
+                          <Text style={styles.confirmPickupPayBtnText}>Sudah Diambil & Dibayar di Loket</Text>
+                        </TouchableOpacity>
+                      </>
                     ) : (
-                      <View style={styles.quantityControlRow}>
-                        <TouchableOpacity
-                          style={styles.qtyBtnMinus}
-                          onPress={() => handleRemoveFromCart(item.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.qtyBtnText}>-</Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.qtyNumberText}>{qtyInCart}</Text>
-
-                        <TouchableOpacity
-                          style={styles.qtyBtnPlus}
-                          onPress={() => handleAddToCart(item.id)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.qtyBtnText}>+</Text>
-                        </TouchableOpacity>
+                      <View style={styles.orderCompletedNoteBox}>
+                        <AppIcon name="check-circle" size={14} color="#15803d" />
+                        <Text style={styles.orderCompletedNoteText}>
+                          Barang telah diambil & dibayar. Transaksi telah masuk ke halaman Riwayat.
+                        </Text>
                       </View>
                     )}
                   </View>
-                </View>
+                ))}
               </View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
 
-      {/* 6. Floating Cart Bar (Appears when items in cart) */}
-      {totalItems > 0 && (
-        <View style={styles.floatingCartBar}>
-          <View style={styles.floatingCartLeft}>
-            <View style={styles.floatingCartBadge}>
-              <Text style={styles.floatingCartBadgeText}>{totalItems} Barang</Text>
+              {/* Tombol Buat Pesanan Baru / Tambah Produk */}
+              <View style={styles.addOrderActionWrap}>
+                <TouchableOpacity
+                  style={styles.addOrderPrimaryBtn}
+                  onPress={() => setActiveTab('katalog')}
+                  activeOpacity={0.85}
+                >
+                  <AppIcon name="plus" size={18} color="#ffffff" />
+                  <Text style={styles.addOrderPrimaryBtnText}>Pesan Produk Baru / Tambah Produk</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            /* Empty State */
+            <View style={styles.emptyOrdersContainer}>
+              <View style={styles.emptyOrdersIconBox}>
+                <AppIcon name="bolt" size={48} color="#94a3b8" />
+              </View>
+              <Text style={styles.emptyOrdersTitle}>Belum Ada Pesanan Elektronik</Text>
+              <Text style={styles.emptyOrdersSub}>
+                Pesan barang elektronik resmi Miyako, Rinnai, dan Shimizu di Koperasi PT BIT.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyOrderStartBtn}
+                onPress={() => setActiveTab('katalog')}
+                activeOpacity={0.85}
+              >
+                <AppIcon name="plus" size={16} color="#ffffff" />
+                <Text style={styles.emptyOrderStartBtnText}>Buka Katalog Produk</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.floatingPriceRow}>
-              <Text style={styles.floatingPriceLabel}>Total:</Text>
-              <Text style={styles.floatingPriceNumber}>Rp {formatRupiah(totalPrice)}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.checkoutBtn}
-            onPress={handleOpenCheckout}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.checkoutBtnText}>Checkout ›</Text>
-          </TouchableOpacity>
-        </View>
+          )}
+        </ScrollView>
       )}
 
       {/* 7. Modal Alur Pembayaran (Checkout Flow) */}
@@ -481,16 +807,14 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={styles.modalScrollBody}
-            >
-              {/* Order Items Summary */}
-              <Text style={styles.sectionFormTitle}>RINGKASAN PESANAN</Text>
+            <ScrollView style={styles.modalScrollBody} showsVerticalScrollIndicator={false}>
+              {/* Ringkasan Item Pesanan */}
+              <Text style={styles.sectionFormTitle}>PRODUK YANG DIPESAN</Text>
               <View style={styles.itemsSummaryBox}>
                 {Object.entries(cart).map(([id, qty]) => {
                   const item = mockElektronikProducts.find((p) => p.id === id);
                   if (!item) return null;
+
                   return (
                     <View key={id} style={styles.itemSummaryRow}>
                       <Image source={item.image} style={styles.itemThumb} resizeMode="contain" />
@@ -499,7 +823,7 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                           {item.name}
                         </Text>
                         <Text style={styles.itemSummaryQtyPrice}>
-                          {qty}x @ Rp {formatRupiah(item.price)}
+                          {qty} Unit x Rp {formatRupiah(item.price)}
                         </Text>
                       </View>
                       <Text style={styles.itemSummarySubtotal}>
@@ -510,8 +834,8 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                 })}
               </View>
 
-              {/* Lokasi Pengambilan Pesanan */}
-              <Text style={styles.sectionFormTitle}>PILIH LOKASI PENGAMBILAN BARANG</Text>
+              {/* Pilihan Lokasi Pengambilan Pabrik */}
+              <Text style={styles.sectionFormTitle}>LOKASI PENGAMBILAN BARANG</Text>
               <View style={styles.locationSelectorRow}>
                 <TouchableOpacity
                   style={[
@@ -536,9 +860,9 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                         pickupLocation === 'gedung_a' && styles.locTitleActive,
                       ]}
                     >
-                      Loket Koperasi Gedung A
+                      Loket Koperasi Gedung A (Utama)
                     </Text>
-                    <Text style={styles.locSub}>Depan HRD & Lobby Utama</Text>
+                    <Text style={styles.locSub}>Lantai 1 Depan Kantor HRD PT BIT</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -572,153 +896,19 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Metode Pembayaran */}
-              <Text style={styles.sectionFormTitle}>PILIH METODE PEMBAYARAN</Text>
-              <View style={styles.paymentMethodList}>
-                {/* 1. Saldo Koperasi */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    paymentMethod === 'saldo' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setPaymentMethod('saldo')}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      styles.locRadio,
-                      paymentMethod === 'saldo' && styles.locRadioActive,
-                    ]}
-                  >
-                    {paymentMethod === 'saldo' && <View style={styles.locRadioDot} />}
-                  </View>
-                  <View style={styles.methodInfoWrap}>
-                    <View style={styles.methodTitleBadgeRow}>
-                      <Text
-                        style={[
-                          styles.methodName,
-                          paymentMethod === 'saldo' && styles.methodNameActive,
-                        ]}
-                      >
-                        Saldo Utama Koperasi
-                      </Text>
-                      <View style={styles.instantBadge}>
-                        <Text style={styles.instantBadgeText}>LUNAS LANGSUNG</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.methodSub}>
-                      Tersedia: Rp {formatRupiah(userBalance)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 2. Potong Gaji 1x */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    paymentMethod === 'payroll_1x' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setPaymentMethod('payroll_1x')}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      styles.locRadio,
-                      paymentMethod === 'payroll_1x' && styles.locRadioActive,
-                    ]}
-                  >
-                    {paymentMethod === 'payroll_1x' && <View style={styles.locRadioDot} />}
-                  </View>
-                  <View style={styles.methodInfoWrap}>
-                    <Text
-                      style={[
-                        styles.methodName,
-                        paymentMethod === 'payroll_1x' && styles.methodNameActive,
-                      ]}
-                    >
-                      Potong Slip Gaji (1x Bayar)
-                    </Text>
-                    <Text style={styles.methodSub}>
-                      Dipotong otomatis dari gaji bulan berikutnya
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 3. Cicilan 3x (0%) */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    paymentMethod === 'payroll_3x' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setPaymentMethod('payroll_3x')}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      styles.locRadio,
-                      paymentMethod === 'payroll_3x' && styles.locRadioActive,
-                    ]}
-                  >
-                    {paymentMethod === 'payroll_3x' && <View style={styles.locRadioDot} />}
-                  </View>
-                  <View style={styles.methodInfoWrap}>
-                    <View style={styles.methodTitleBadgeRow}>
-                      <Text
-                        style={[
-                          styles.methodName,
-                          paymentMethod === 'payroll_3x' && styles.methodNameActive,
-                        ]}
-                      >
-                        Cicilan Potong Gaji 3x (0% Bunga)
-                      </Text>
-                      <View style={styles.cicilanBadge}>
-                        <Text style={styles.cicilanBadgeText}>POPULER</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.methodSub}>
-                      Rp {formatRupiah(Math.round(totalPrice / 3))}/bulan selama 3 bulan
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 4. Cicilan 6x (0%) */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    paymentMethod === 'payroll_6x' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setPaymentMethod('payroll_6x')}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      styles.locRadio,
-                      paymentMethod === 'payroll_6x' && styles.locRadioActive,
-                    ]}
-                  >
-                    {paymentMethod === 'payroll_6x' && <View style={styles.locRadioDot} />}
-                  </View>
-                  <View style={styles.methodInfoWrap}>
-                    <Text
-                      style={[
-                        styles.methodName,
-                        paymentMethod === 'payroll_6x' && styles.methodNameActive,
-                      ]}
-                    >
-                      Cicilan Potong Gaji 6x (0% Bunga)
-                    </Text>
-                    <Text style={styles.methodSub}>
-                      Rp {formatRupiah(Math.round(totalPrice / 6))}/bulan selama 6 bulan
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+              {/* Info Pembayaran Pihak Ke-3 */}
+              <View style={styles.paymentInfoBox}>
+                <AppIcon name="info" size={14} color="#1d72db" />
+                <Text style={styles.paymentInfoText}>
+                  Pemesanan diproses secara pre-order. Pembayaran akan dilakukan melalui Mitra Pihak Ke-3 saat pengambilan di Loket Koperasi PT BIT. Saldo simpanan koperasi tidak terpotong.
+                </Text>
               </View>
 
               {/* Catatan Khusus */}
               <Text style={styles.sectionFormTitle}>CATATAN PESANAN (OPSIONAL)</Text>
               <TextInput
                 style={styles.notesInput}
-                placeholder="Contoh: Titip ke staf HRD / Ambil jam istirahat"
+                placeholder="Contoh: Titip ke staf HRD / Ambil saat jam istirahat"
                 placeholderTextColor="#94a3b8"
                 value={notes}
                 onChangeText={setNotes}
@@ -734,113 +924,162 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                   <Text style={styles.summaryLabel}>Ongkir / Biaya Ambil di Pabrik</Text>
                   <Text style={styles.freeAdminVal}>GRATIS (Rp 0)</Text>
                 </View>
-                <View style={styles.summaryLineRow}>
-                  <Text style={styles.summaryLabel}>Bunga Koperasi</Text>
-                  <Text style={styles.freeAdminVal}>0% TANPA BUNGA</Text>
-                </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryLineRow}>
-                  <Text style={styles.summaryTotalLabel}>TOTAL PEMBAYARAN</Text>
+                  <Text style={styles.summaryTotalLabel}>TOTAL TAGIHAN</Text>
                   <Text style={styles.summaryTotalAmount}>Rp {formatRupiah(totalPrice)}</Text>
                 </View>
               </View>
             </ScrollView>
 
-            {/* Confirm Payment Action Button */}
-            <View style={styles.modalActionFooter}>
+            {/* Confirm Action Button */}
+            <View style={styles.modalActionButtonsRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setIsCheckoutModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelBtnText}>Batal</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.confirmPayBtn}
                 onPress={handleConfirmPayment}
                 activeOpacity={0.85}
               >
-                <Text style={styles.confirmPayBtnText}>Konfirmasi & Pesan Barang Sekarang ›</Text>
+                <Text style={styles.confirmPayBtnText}>Konfirmasi Pesanan (Rp {formatRupiah(totalPrice)})</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* 8. Modal Tiket Struk Pengambilan (Order Success Ticket) */}
+      {/* 8. Modal Konfirmasi Pengambilan & Pembayaran */}
       <Modal
-        visible={isSuccessTicketVisible}
+        visible={isConfirmPickupModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {
-          setIsSuccessTicketVisible(false);
-          onBack();
-        }}
+        onRequestClose={() => setIsConfirmPickupModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.ticketSuccessCard}>
-            <View style={styles.ticketIconCircle}>
-              <AppIcon name="check-circle" size={32} color="#16a34a" />
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.confirmModalCard}>
+            <View style={styles.confirmModalIconCircle}>
+              <AppIcon name="check-circle" size={32} color="#1d72db" />
             </View>
-
-            <Text style={styles.ticketSuccessTitle}>Pemesanan Berhasil!</Text>
-            <Text style={styles.ticketSuccessSub}>
-              Tunjukkan struk digital ini saat mengambil barang di Loket Koperasi
+            <Text style={styles.confirmModalTitle}>Konfirmasi Pengambilan Barang</Text>
+            <Text style={styles.confirmModalSub}>
+              Pastikan Anda sudah menerima barang pesanan dan menyelesaikan pembayaran via pihak ke-3 di Loket Koperasi.
             </Text>
 
-            {/* Ticket Code Box */}
-            <View style={styles.ticketCodeBox}>
-              <Text style={styles.ticketCodeLabel}>KODE PENGAMBILAN BARANG</Text>
-              <Text style={styles.ticketCodeText}>{completedOrderTicket?.ticketNo}</Text>
-            </View>
+            {selectedOrderToComplete && (
+              <View style={styles.confirmOrderSummaryBox}>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Kode Pengambilan:</Text>
+                  <Text style={styles.confirmSummaryTicket}>{selectedOrderToComplete.ticketNo}</Text>
+                </View>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Jumlah Unit:</Text>
+                  <Text style={styles.confirmSummaryVal}>{selectedOrderToComplete.itemsCount} Barang</Text>
+                </View>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Loket Pengambilan:</Text>
+                  <Text style={styles.confirmSummaryVal} numberOfLines={1}>{selectedOrderToComplete.pickupLocName}</Text>
+                </View>
+                <View style={styles.confirmSummaryDivider} />
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryTotalLabel}>Total Tagihan:</Text>
+                  <Text style={styles.confirmSummaryTotalAmount}>
+                    Rp {formatRupiah(selectedOrderToComplete.totalAmount)}
+                  </Text>
+                </View>
+              </View>
+            )}
 
-            {/* Barcode Visual */}
-            <View style={styles.barcodeBox}>
-              <View style={styles.barcodeBarsRow}>
-                {[5, 2, 7, 3, 9, 4, 6, 2, 8, 5, 3, 7, 2, 6, 4, 9, 3, 5, 7].map((w, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      width: w,
-                      height: 42,
-                      backgroundColor: '#0f172a',
-                      marginHorizontal: 1.5,
-                      borderRadius: 1,
-                    }}
-                  />
-                ))}
-              </View>
-              <Text style={styles.barcodeSub}>Scan Barcode di Loket Koperasi PT BIT</Text>
-            </View>
+            <View style={styles.confirmModalBtnRow}>
+              <TouchableOpacity
+                style={styles.confirmModalCancelBtn}
+                onPress={() => setIsConfirmPickupModalVisible(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.confirmModalCancelBtnText}>Batal</Text>
+              </TouchableOpacity>
 
-            {/* Details List */}
-            <View style={styles.ticketDetailsList}>
-              <View style={styles.ticketRow}>
-                <Text style={styles.ticketLabel}>Lokasi Pengambilan</Text>
-                <Text style={styles.ticketVal}>{completedOrderTicket?.pickupLocName}</Text>
-              </View>
-              <View style={styles.ticketRow}>
-                <Text style={styles.ticketLabel}>Total Pembayaran</Text>
-                <Text style={styles.ticketValBold}>
-                  Rp {formatRupiah(completedOrderTicket?.totalAmount || 0)}
-                </Text>
-              </View>
-              <View style={styles.ticketRow}>
-                <Text style={styles.ticketLabel}>Metode Pembayaran</Text>
-                <Text style={styles.ticketVal}>{completedOrderTicket?.paymentSource}</Text>
-              </View>
-              <View style={styles.ticketRow}>
-                <Text style={styles.ticketLabel}>Garansi Resmi</Text>
-                <Text style={styles.ticketValGreen}>100% Produk Original PT BIT</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.confirmModalExecuteBtn}
+                onPress={handleExecuteCompleteOrder}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.confirmModalExecuteBtnText}>Ya, Sudah Bayar & Ambil</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.doneBtn}
-              onPress={() => {
-                setIsSuccessTicketVisible(false);
-                onBack();
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.doneBtnText}>Selesai & Kembali ke Beranda</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      {/* 9. Modal Sukses Pesanan Selesai & Masuk Riwayat */}
+      <Modal
+        visible={isCompletedSuccessModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsCompletedSuccessModalVisible(false)}
+      >
+        <View style={styles.confirmModalOverlay}>
+          <View style={styles.successCompletedCard}>
+            <View style={styles.successBadgeCircle}>
+              <AppIcon name="check" size={34} color="#ffffff" />
+            </View>
+            <Text style={styles.successCompletedTitle}>Pengambilan Berhasil! 🎉</Text>
+            <Text style={styles.successCompletedSub}>
+              Barang telah berhasil diambil dan dibayar. Transaksi telah otomatis tercatat di halaman Riwayat Pemesanan.
+            </Text>
+
+            {lastCompletedOrder && (
+              <View style={styles.successReceiptBriefBox}>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Kode Barang:</Text>
+                  <Text style={styles.confirmSummaryTicket}>{lastCompletedOrder.ticketNo}</Text>
+                </View>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Total Tagihan:</Text>
+                  <Text style={styles.confirmSummaryTotalAmount}>
+                    Rp {formatRupiah(lastCompletedOrder.totalAmount)}
+                  </Text>
+                </View>
+                <View style={styles.confirmSummaryRow}>
+                  <Text style={styles.confirmSummaryLabel}>Status:</Text>
+                  <Text style={styles.orderPaymentMetaBadgeSuccess}>Sudah Dibayar (Lunas)</Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.successActionStack}>
+              {onNavigateRiwayat && (
+                <TouchableOpacity
+                  style={styles.viewRiwayatBtn}
+                  onPress={() => {
+                    setIsCompletedSuccessModalVisible(false);
+                    onNavigateRiwayat();
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <AppIcon name="receipt" size={16} color="#ffffff" />
+                  <Text style={styles.viewRiwayatBtnText}>Lihat di Riwayat Pemesanan</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.closeSuccessBtn}
+                onPress={() => setIsCompletedSuccessModalVisible(false)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.closeSuccessBtnText}>Tetap di Katalog</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+
 
       {/* 9. Modal Filter Merk */}
       <Modal
@@ -967,9 +1206,6 @@ export const ProdukElektronikScreen: React.FC<ProdukElektronikScreenProps> = ({
                     activeOpacity={0.7}
                   >
                     <View style={styles.pickerItemLeft}>
-                      <View style={styles.catEmojiWrap}>
-                        <Text style={styles.catEmojiText}>{c.icon}</Text>
-                      </View>
                       <View>
                         <Text style={[styles.pickerItemLabel, isSelected && styles.pickerItemLabelActive]}>
                           {c.label}
@@ -999,11 +1235,8 @@ const styles = StyleSheet.create({
   },
   topNavBar: {
     backgroundColor: '#1d72db',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingTop: 14,
-    paddingBottom: 16,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
@@ -1012,6 +1245,56 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 8,
     elevation: 6,
+  },
+  topNavHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  screenNavTabs: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  screenNavTabItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 9,
+    gap: 6,
+  },
+  screenNavTabItemActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  screenNavTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#dbeafe',
+  },
+  screenNavTabTextActive: {
+    color: '#1d72db',
+    fontWeight: '800',
+  },
+  tabBadgeCounter: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  tabBadgeCounterText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
   backBtn: {
     width: 36,
@@ -1213,6 +1496,96 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#dc2626',
+  },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  activeFilterChipText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#1d72db',
+  },
+  categoryPillsWrapper: {
+    marginBottom: 12,
+  },
+  categoryPillsScroll: {
+    gap: 8,
+    paddingRight: 10,
+  },
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    gap: 6,
+  },
+  categoryPillActive: {
+    backgroundColor: '#1d72db',
+    borderColor: '#1d72db',
+  },
+  categoryPillIcon: {
+    fontSize: 12,
+  },
+  categoryPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  categoryPillTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  warrantyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginBottom: 12,
+    gap: 10,
+  },
+  warrantyIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warrantyTextGroup: {
+    flex: 1,
+  },
+  warrantyTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  warrantySub: {
+    fontSize: 9.5,
+    color: '#15803d',
+    marginTop: 1,
   },
 
   /* Empty Search State */
@@ -1873,15 +2246,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1d72db',
   },
-  modalActionFooter: {
+  modalActionButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 18,
-    paddingTop: 8,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
-  confirmPayBtn: {
-    backgroundColor: '#1d72db',
-    paddingVertical: 13,
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  confirmPayBtn: {
+    flex: 2,
+    backgroundColor: '#1d72db',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#1d72db',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.28,
@@ -1890,13 +2281,13 @@ const styles = StyleSheet.create({
   },
   confirmPayBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   ticketSuccessCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    padding: 20,
+    padding: 18,
     marginHorizontal: 16,
     alignItems: 'center',
     shadowColor: '#000',
@@ -1906,62 +2297,63 @@ const styles = StyleSheet.create({
     elevation: 8,
     borderWidth: 1,
     borderColor: '#bfdbfe',
+    maxHeight: '90%',
   },
   ticketIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#dcfce7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   ticketSuccessTitle: {
-    fontSize: 17,
+    fontSize: 16.5,
     fontWeight: '700',
     color: '#0f172a',
   },
   ticketSuccessSub: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748b',
     textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 14,
+    marginTop: 3,
+    marginBottom: 10,
   },
   ticketCodeBox: {
     backgroundColor: '#eff6ff',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     borderWidth: 1.2,
     borderColor: '#bfdbfe',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   ticketCodeLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '700',
     color: '#1d72db',
     letterSpacing: 0.5,
   },
   ticketCodeText: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#1e40af',
     letterSpacing: 2,
-    marginTop: 2,
+    marginTop: 1,
   },
   barcodeBox: {
     backgroundColor: '#f8fafc',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     width: '100%',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   barcodeBarsRow: {
     flexDirection: 'row',
@@ -1969,52 +2361,703 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   barcodeSub: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '600',
     color: '#64748b',
-    marginTop: 6,
+    marginTop: 4,
   },
   ticketDetailsList: {
     width: '100%',
-    gap: 6,
-    marginBottom: 16,
+    gap: 4,
+    marginBottom: 12,
+  },
+  ticketProductSectionTitle: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  ticketProductsBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 4,
+  },
+  ticketProductItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2.5,
+  },
+  ticketProductName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  ticketProductBrand: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#1d72db',
+  },
+  ticketProductQtyPrice: {
+    fontSize: 9.5,
+    color: '#64748b',
+  },
+  ticketProductSubtotal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  ticketNotesRow: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  ticketNotesLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  ticketNotesVal: {
+    fontSize: 9.5,
+    color: '#334155',
+    fontStyle: 'italic',
+    flex: 1,
+  },
+  ticketDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 4,
   },
   ticketRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 1,
   },
   ticketLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#64748b',
   },
   ticketVal: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: '#0f172a',
     maxWidth: '60%',
     textAlign: 'right',
   },
   ticketValBold: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
     color: '#1d72db',
   },
+  ticketPaymentBadge: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#1d72db',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   ticketValGreen: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
     color: '#16a34a',
   },
-  doneBtn: {
+  paymentInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    marginBottom: 10,
+  },
+  paymentInfoText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#1d72db',
+    lineHeight: 14,
+  },
+  orderedItemBrand: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#1d72db',
+    marginTop: 1,
+  },
+  orderedItemSub: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  orderedItemSubtotal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  orderNotesCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  orderNotesLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  orderNotesVal: {
+    fontSize: 10,
+    color: '#334155',
+    fontStyle: 'italic',
+    flex: 1,
+  },
+  orderSummaryMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  orderMetaLabel: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  orderMetaVal: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  orderStatusBadgeSuccess: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#bbf7d0',
+  },
+  orderStatusBadgeTextSuccess: {
+    color: '#15803d',
+  },
+  orderPaymentMetaBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1d72db',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  orderPaymentMetaBadgePending: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: '#fde68a',
+  },
+  orderPaymentMetaBadgeSuccess: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#15803d',
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 5,
+    borderWidth: 0.8,
+    borderColor: '#bbf7d0',
+  },
+  orderTotalLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: 4,
+  },
+  orderTotalAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1d72db',
+    marginTop: 4,
+  },
+  loketInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+    marginTop: 10,
+  },
+  loketInfoText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#1d72db',
+    lineHeight: 14,
+  },
+  loketInfoPendingText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#92400e',
+    lineHeight: 14,
+    fontWeight: '500',
+  },
+  confirmPickupPayBtn: {
     backgroundColor: '#1d72db',
-    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    gap: 6,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  confirmPickupPayBtnText: {
+    color: '#ffffff',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  orderCompletedNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  orderCompletedNoteText: {
+    fontSize: 10.5,
+    color: '#166534',
+    fontWeight: '600',
+    flex: 1,
+  },
+  addOrderActionWrap: {
+    marginTop: 6,
+    marginBottom: 30,
+  },
+  addOrderPrimaryBtn: {
+    backgroundColor: '#1d72db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 13,
     borderRadius: 14,
+    gap: 8,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  addOrderPrimaryBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  emptyOrdersContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyOrdersIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyOrdersTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  emptyOrdersSub: {
+    fontSize: 11.5,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 20,
+  },
+  emptyOrderStartBtn: {
+    backgroundColor: '#1d72db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 6,
+  },
+  emptyOrderStartBtnText: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  ordersScrollBody: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 40,
+  },
+  ordersListSection: {
+    marginBottom: 16,
+  },
+  ordersSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  orderTicketCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  orderTicketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  orderTicketNoLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  orderTicketNoVal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1d72db',
+    marginTop: 2,
+  },
+  orderTicketStand: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#334155',
+    marginTop: 2,
+  },
+  orderStatusBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  orderStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309',
+  },
+  orderTicketDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 10,
+  },
+  orderItemsHeading: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  orderItemsStack: {
+    gap: 8,
+  },
+  orderedItemRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  doneBtnText: {
+  orderedItemPlaceholderThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orderedItemName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  activeOrderNotifyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  activeOrderNotifyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  notifyPulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1d72db',
+  },
+  activeOrderNotifyText: {
+    fontSize: 11,
+    color: '#1e40af',
+    flex: 1,
+  },
+  activeOrderNotifyLink: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1d72db',
+    marginLeft: 6,
+  },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  confirmModalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  confirmModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  confirmModalSub: {
+    fontSize: 11.5,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  confirmOrderSummaryBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 12,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 18,
+    gap: 6,
+  },
+  confirmSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  confirmSummaryLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  confirmSummaryTicket: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1d72db',
+  },
+  confirmSummaryVal: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    maxWidth: '65%',
+    textAlign: 'right',
+  },
+  confirmSummaryDivider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 4,
+  },
+  confirmSummaryTotalLabel: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  confirmSummaryTotalAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1d72db',
+  },
+  confirmModalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmModalCancelBtn: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmModalCancelBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  confirmModalExecuteBtn: {
+    flex: 1.6,
+    backgroundColor: '#1d72db',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  confirmModalExecuteBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#ffffff',
-    fontSize: 13,
+  },
+  successCompletedCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  successBadgeCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  successCompletedTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  successCompletedSub: {
+    fontSize: 11.5,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 17,
+    marginBottom: 16,
+  },
+  successReceiptBriefBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    padding: 12,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    marginBottom: 20,
+    gap: 6,
+  },
+  successActionStack: {
+    width: '100%',
+    gap: 8,
+  },
+  viewRiwayatBtn: {
+    backgroundColor: '#1d72db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  viewRiwayatBtnText: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  closeSuccessBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeSuccessBtnText: {
+    color: '#475569',
+    fontSize: 12,
     fontWeight: '700',
   },
 });

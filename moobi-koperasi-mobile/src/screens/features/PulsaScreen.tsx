@@ -10,14 +10,18 @@ import {
   Modal,
   ActivityIndicator,
   Image,
+  Linking,
 } from 'react-native';
 import { AppIcon } from '../../components/common/AppIcon';
 import { mockWallet } from '../../data/mockData';
+import { QrisPaymentModal } from '../../components/modals/QrisPaymentModal';
 
 const plnLogo = require('../../../assets/tagihan/pln.png');
 const bpjsLogo = require('../../../assets/tagihan/bpjs.png');
 const pdamLogo = require('../../../assets/tagihan/pdam.png');
 const wifiLogo = require('../../../assets/tagihan/wifi.png');
+const waLogo = require('../../../assets/page/wa.png');
+const teleLogo = require('../../../assets/page/tele.png');
 
 const emoneyProviderList = [
   { id: 'gopay', name: 'GoPay', logo: require('../../../assets/transfer/gopay.png') },
@@ -27,6 +31,245 @@ const emoneyProviderList = [
   { id: 'flazz', name: 'Flazz BCA', logo: require('../../../assets/transfer/bca.png') },
   { id: 'etoll', name: 'Mandiri e-Money', logo: require('../../../assets/transfer/mandiri.png') },
 ];
+
+// Helper to generate a full, realistic, printable digital receipt HTML
+const generateReceiptHtml = (tx: {
+  productName: string;
+  target: string;
+  price: number;
+  tokenCode?: string;
+  txNo: string;
+  paymentSource?: string;
+}) => {
+  const dateStr = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const timeStr = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const formattedPrice = new Intl.NumberFormat('id-ID').format(tx.price);
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Struk Pembayaran - ${tx.txNo}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 24px 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #0f172a;
+    }
+    .receipt-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+      box-sizing: border-box;
+      border: 1px solid #e2e8f0;
+      position: relative;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px dashed #cbd5e1;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+    .badge-success {
+      display: inline-block;
+      background: #dcfce7;
+      color: #15803d;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    .company-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+      letter-spacing: 0.3px;
+    }
+    .sub-title {
+      font-size: 11px;
+      color: #64748b;
+      margin: 4px 0 0 0;
+    }
+    .info-table {
+      width: 100%;
+      font-size: 12px;
+      margin-bottom: 14px;
+      border-collapse: collapse;
+    }
+    .info-table td {
+      padding: 6px 0;
+      vertical-align: top;
+    }
+    .info-table .label {
+      color: #64748b;
+      width: 42%;
+    }
+    .info-table .val {
+      color: #0f172a;
+      font-weight: 700;
+      text-align: right;
+    }
+    .divider {
+      height: 1px;
+      border-top: 1px dashed #cbd5e1;
+      margin: 12px 0;
+    }
+    .total-row td {
+      padding-top: 8px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .token-banner {
+      background: #fffbeb;
+      border: 1.5px dashed #f59e0b;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      margin: 14px 0;
+    }
+    .token-label {
+      font-size: 10px;
+      font-weight: 800;
+      color: #92400e;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .token-code {
+      font-size: 18px;
+      font-weight: 900;
+      color: #d97706;
+      letter-spacing: 2px;
+      font-family: monospace;
+    }
+    .footer {
+      text-align: center;
+      font-size: 10px;
+      color: #94a3b8;
+      border-top: 2px dashed #cbd5e1;
+      padding-top: 14px;
+      margin-top: 16px;
+      line-height: 1.4;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .print-btn {
+      flex: 1;
+      background: #1d72db;
+      color: #ffffff;
+      text-align: center;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+    }
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .receipt-card {
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+      }
+      .btn-row {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-card">
+    <div class="header">
+      <div class="badge-success">TRANSAKSI BERHASIL / LUNAS</div>
+      <h1 class="company-title">PT BAKTI IDOLA TAMA</h1>
+      <p class="sub-title">Moobi Koperasi Karyawan • Bukti Transaksi Resmi</p>
+    </div>
+
+    <table class="info-table">
+      <tr>
+        <td class="label">Nomor Referensi</td>
+        <td class="val">${tx.txNo}</td>
+      </tr>
+      <tr>
+        <td class="label">Tanggal & Waktu</td>
+        <td class="val">${dateStr}, ${timeStr}</td>
+      </tr>
+      <tr>
+        <td class="label">Layanan</td>
+        <td class="val">${tx.productName}</td>
+      </tr>
+      <tr>
+        <td class="label">No. Tujuan / Pelanggan</td>
+        <td class="val">${tx.target}</td>
+      </tr>
+      <tr>
+        <td class="label">Metode Pembayaran</td>
+        <td class="val">${tx.paymentSource}</td>
+      </tr>
+      <tr>
+        <td class="label">Status</td>
+        <td class="val" style="color: #16a34a; font-weight: 800;">Lunas (Verified)</td>
+      </tr>
+    </table>
+
+    ${
+      tx.tokenCode
+        ? `<div class="token-banner">
+            <div class="token-label">KODE STROOM TOKEN PLN RESMI:</div>
+            <div class="token-code">${tx.tokenCode}</div>
+          </div>`
+        : ''
+    }
+
+    <div class="divider"></div>
+
+    <table class="info-table">
+      <tr class="total-row">
+        <td style="color: #0f172a;">Total Tagihan</td>
+        <td class="val" style="color: #1d72db; font-size: 16px;">Rp ${formattedPrice}</td>
+      </tr>
+    </table>
+
+    <div class="btn-row">
+      <button class="print-btn" onclick="window.print()">Cetak / Simpan PDF</button>
+    </div>
+
+    <div class="footer">
+      Struk ini merupakan bukti transaksi digital yang sah.<br>
+      Terima kasih telah bertransaksi di Moobi Koperasi PT BIT.
+    </div>
+  </div>
+</body>
+</html>`;
+};
 
 export type PPOBServiceType = 'pulsa' | 'token' | 'emoney' | 'pdam' | 'bpjs';
 
@@ -77,10 +320,9 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
   const isBpjsPaid = !!bpjsPaidStatus[bpjsType];
   const isPdamPaid = !!pdamPaidStatus;
 
+  const [ppobPaymentMethod, setPpobPaymentMethod] = useState<'qris' | 'va' | 'ewallet'>('qris');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [pinModalVisible, setPinModalVisible] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [qrisModalVisible, setQrisModalVisible] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [lastTxData, setLastTxData] = useState<{
     productName: string;
@@ -88,6 +330,7 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
     price: number;
     tokenCode?: string;
     txNo: string;
+    paymentSource?: string;
   } | null>(null);
 
   const formatRupiah = (val: number) => {
@@ -157,6 +400,14 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
     return selectedProduct;
   };
 
+  const getTargetNumber = () => {
+    if (mode === 'token') return meterNumber;
+    if (mode === 'emoney') return `${selectedEmoneyProvider.toUpperCase()} - ${emoneyNumber}`;
+    if (mode === 'pdam') return `${pdamWilayah} • No. Pelanggan: ${pdamNumber}`;
+    if (mode === 'bpjs') return `BPJS ${bpjsType === 'kesehatan' ? 'Kesehatan' : 'Ketenagakerjaan'} • No. VA: ${bpjsNumber}`;
+    return phoneNumber;
+  };
+
   const handleProceedPay = () => {
     const effProduct = getEffectiveProduct();
     if (!effProduct) {
@@ -171,65 +422,144 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
       Alert.alert('Tagihan Lunas', 'Tagihan PDAM untuk periode ini sudah terbayar lunas.');
       return;
     }
-    if (userBalance < effProduct.price) {
-      Alert.alert(
-        'Simpanan Sukarela Kurang',
-        `Saldo Simpanan Sukarela Anda (Rp ${formatRupiah(
-          userBalance
-        )}) tidak cukup untuk membayar Rp ${formatRupiah(effProduct.price)}.`
-      );
-      return;
-    }
-    setPinInput('');
-    setPinModalVisible(true);
+    setQrisModalVisible(true);
   };
 
-  const handleConfirmPIN = () => {
-    if (pinInput.length < 6) {
-      Alert.alert('PIN Tidak Lengkap', 'Masukkan 6-digit PIN keamanan transaksi Anda.');
-      return;
-    }
-
+  const handleConfirmQRISPayment = () => {
     const effProduct = getEffectiveProduct();
     if (!effProduct) return;
 
-    setIsSubmitting(true);
+    setQrisModalVisible(false);
+
+    let target = phoneNumber;
+    let tokenCode: string | undefined = undefined;
+
+    if (mode === 'token') {
+      target = `No. Meter: ${meterNumber}`;
+      tokenCode = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    } else if (mode === 'emoney') {
+      target = `${selectedEmoneyProvider.toUpperCase()} - ${emoneyNumber}`;
+    } else if (mode === 'pdam') {
+      target = `${pdamWilayah} - ${pdamNumber}`;
+      onUpdatePdamPaidStatus?.(true);
+    } else if (mode === 'bpjs') {
+      target = `BPJS ${bpjsType.toUpperCase()} - ${bpjsNumber}`;
+      onUpdateBpjsPaidStatus?.(bpjsType, true);
+    }
+
+    const txNo = `QRIS-${mode.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+
+    setLastTxData({
+      productName: effProduct.title,
+      target,
+      price: effProduct.price,
+      tokenCode,
+      txNo,
+      paymentSource: 'QRIS (Lunas)',
+    });
+
+    if (onPurchaseSuccess) {
+      onPurchaseSuccess(effProduct.price, effProduct.title, mode, target);
+    }
+
+    setSuccessModalVisible(true);
+  };
+
+  const getReceiptShareText = () => {
+    if (!lastTxData) return '';
+    const dateStr = new Date().toLocaleString('id-ID', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    return `*BUKTI PEMBAYARAN RESMI - MOOBI KOPERASI PT BIT*
+━━━━━━━━━━━━━━━━━━━━
+📄 *No. Referensi:* ${lastTxData.txNo}
+📅 *Waktu:* ${dateStr}
+⚡ *Layanan:* ${lastTxData.productName}
+🎯 *Tujuan / ID:* ${lastTxData.target}
+${lastTxData.tokenCode ? `🔑 *KODE TOKEN PLN:* ${lastTxData.tokenCode}\n` : ''}💳 *Metode:* ${lastTxData.paymentSource}
+💰 *Total Tagihan:* Rp ${formatRupiah(lastTxData.price)}
+✅ *Status:* LUNAS (TERVERIFIKASI)
+━━━━━━━━━━━━━━━━━━━━
+_Struk digital resmi diterbitkan oleh Moobi Koperasi Karyawan PT Bakti Idola Tama._`;
+  };
+
+  const handlePrintReceipt = () => {
+    if (!lastTxData) return;
+    try {
+      const htmlContent = generateReceiptHtml(lastTxData);
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Struk_Pembayaran_${lastTxData.txNo}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+      Alert.alert(
+        'Bukti Pembayaran Diunduh 📄',
+        `File struk resmi (Struk_Pembayaran_${lastTxData.txNo}.html) berhasil diunduh. Anda dapat langsung membuka atau mencetaknya.`
+      );
+    } catch (e) {
+      Alert.alert('Cetak Bukti', `Struk transaksi ${lastTxData.txNo} siap dicetak.`);
+    }
+  };
+
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [copiedToast, setCopiedToast] = useState(false);
+
+  const handleShareReceipt = () => {
+    if (!lastTxData) return;
+    setShareModalVisible(true);
+  };
+
+  const handleShareToWhatsApp = () => {
+    const text = encodeURIComponent(getReceiptShareText());
+    const waUrl = `https://api.whatsapp.com/send?text=${text}`;
+    if (typeof window !== 'undefined') {
+      window.open(waUrl, '_blank');
+    } else {
+      Linking.openURL(waUrl).catch(() => {});
+    }
+    setShareModalVisible(false);
+  };
+
+  const handleShareToTelegram = () => {
+    const text = encodeURIComponent(getReceiptShareText());
+    const tgUrl = `https://t.me/share/url?url=&text=${text}`;
+    if (typeof window !== 'undefined') {
+      window.open(tgUrl, '_blank');
+    } else {
+      Linking.openURL(tgUrl).catch(() => {});
+    }
+    setShareModalVisible(false);
+  };
+
+  const handleCopyReceiptText = () => {
+    const text = getReceiptShareText();
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedToast(true);
     setTimeout(() => {
-      setIsSubmitting(false);
-      setPinModalVisible(false);
+      setCopiedToast(false);
+    }, 2000);
+  };
 
-      let target = phoneNumber;
-      let tokenCode: string | undefined = undefined;
-
-      if (mode === 'token') {
-        target = meterNumber;
-        tokenCode = `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      } else if (mode === 'emoney') {
-        target = `${selectedEmoneyProvider.toUpperCase()} - ${emoneyNumber}`;
-      } else if (mode === 'pdam') {
-        target = `${pdamWilayah} - ${pdamNumber}`;
-        onUpdatePdamPaidStatus?.(true);
-      } else if (mode === 'bpjs') {
-        target = `BPJS ${bpjsType.toUpperCase()} - ${bpjsNumber}`;
-        onUpdateBpjsPaidStatus?.(bpjsType, true);
-      }
-
-      const txNo = `${mode.toUpperCase()}-${Date.now().toString().slice(-6)}`;
-
-      setLastTxData({
-        productName: effProduct.title,
-        target,
-        price: effProduct.price,
-        tokenCode,
-        txNo,
-      });
-
-      if (onPurchaseSuccess) {
-        onPurchaseSuccess(effProduct.price, effProduct.title, mode, target);
-      }
-
-      setSuccessModalVisible(true);
-    }, 700);
+  const handleShareToEmail = () => {
+    if (!lastTxData) return;
+    const subject = encodeURIComponent(`Struk Pembayaran ${lastTxData.txNo} - PT Bakti Idola Tama`);
+    const body = encodeURIComponent(getReceiptShareText());
+    const mailUrl = `mailto:?subject=${subject}&body=${body}`;
+    if (typeof window !== 'undefined') {
+      window.open(mailUrl, '_blank');
+    } else {
+      Linking.openURL(mailUrl).catch(() => {});
+    }
+    setShareModalVisible(false);
   };
 
   // Header Title and Info Mapping for 1-menu 1-activity
@@ -238,32 +568,32 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
       case 'token':
         return {
           title: 'Token Listrik PLN',
-          sub: 'Prabayar PLN • Sumber: Simpanan Sukarela',
+          sub: 'Prabayar PLN • Pembayaran Instan',
           icon: 'zap' as const,
         };
       case 'emoney':
         return {
           title: 'Top Up E-Money',
-          sub: 'Dompet Digital & Kartu • Sumber: Simpanan Sukarela',
+          sub: 'Dompet Digital & Kartu • Top Up Saldo',
           icon: 'topup' as const,
         };
       case 'pdam':
         return {
           title: 'Pembayaran PDAM',
-          sub: 'Tagihan Air Bersih • Sumber: Simpanan Sukarela',
+          sub: 'Tagihan Air Bersih • Pembayaran Resmi',
           icon: 'pdam' as const,
         };
       case 'bpjs':
         return {
           title: 'Pembayaran BPJS',
-          sub: 'Kesehatan & Ketenagakerjaan • Sumber: Simpanan Sukarela',
+          sub: 'Kesehatan & Ketenagakerjaan • Pembayaran Resmi',
           icon: 'bpjs' as const,
         };
       case 'pulsa':
       default:
         return {
           title: 'Pulsa & Paket Data',
-          sub: 'Semua Operator • Sumber: Simpanan Sukarela',
+          sub: 'Semua Operator • Pengisian Pulsa & Paket Data',
           icon: 'pulsa' as const,
         };
     }
@@ -317,7 +647,22 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
             </View>
 
             <View style={styles.inputCard}>
-              <Text style={styles.inputCardLabel}>Nomor Handphone Penerima</Text>
+              <View style={styles.serviceBrandHeader}>
+                <View style={styles.serviceBrandLogoWrap}>
+                  <AppIcon name="pulsa" size={24} color="#1d72db" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.serviceBrandTitleRow}>
+                    <Text style={styles.serviceBrandTitle}>Pulsa & Kuota Data</Text>
+                    <View style={styles.serviceBrandBadge}>
+                      <Text style={styles.serviceBrandBadgeText}>Semua Operator</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.serviceBrandSub}>Pengisian Pulsa & Paket Data Seluler Instan</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.inputCardLabel, { marginTop: 4 }]}>Nomor Handphone Penerima</Text>
               <View style={styles.inputBoxRow}>
                 <AppIcon name="phone" size={16} color="#2563eb" />
                 <TextInput
@@ -380,12 +725,17 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
                   <Image source={plnLogo} style={styles.serviceBrandLogo} resizeMode="contain" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.serviceBrandTitle}>PLN Listrik Pintar</Text>
+                  <View style={styles.serviceBrandTitleRow}>
+                    <Text style={styles.serviceBrandTitle}>PLN Listrik Pintar</Text>
+                    <View style={styles.serviceBrandBadge}>
+                      <Text style={styles.serviceBrandBadgeText}>PLN Prabayar</Text>
+                    </View>
+                  </View>
                   <Text style={styles.serviceBrandSub}>Pembelian Strum / Token Listrik Prabayar</Text>
                 </View>
               </View>
 
-              <Text style={[styles.inputCardLabel, { marginTop: 12 }]}>Nomor Meter / ID Pelanggan PLN</Text>
+              <Text style={[styles.inputCardLabel, { marginTop: 4 }]}>Nomor Meter / ID Pelanggan PLN</Text>
               <View style={styles.inputBoxRow}>
                 <AppIcon name="zap" size={16} color="#ea580c" />
                 <TextInput
@@ -441,7 +791,31 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
         {mode === 'emoney' && (
           <>
             <View style={styles.inputCard}>
-              <Text style={styles.inputCardLabel}>Pilih Penyedia E-Money / Dompet Digital</Text>
+              <View style={styles.serviceBrandHeader}>
+                <View style={styles.serviceBrandLogoWrap}>
+                  <Image
+                    source={
+                      emoneyProviderList.find((p) => p.id === selectedEmoneyProvider)?.logo ||
+                      emoneyProviderList[0].logo
+                    }
+                    style={styles.serviceBrandLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.serviceBrandTitleRow}>
+                    <Text style={styles.serviceBrandTitle}>
+                      Top Up {emoneyProviderList.find((p) => p.id === selectedEmoneyProvider)?.name || 'E-Money'}
+                    </Text>
+                    <View style={styles.serviceBrandBadge}>
+                      <Text style={styles.serviceBrandBadgeText}>Real-Time</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.serviceBrandSub}>Saldo Dompet Digital & Kartu Uang Elektronik</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.inputCardLabel, { marginTop: 4 }]}>Pilih Penyedia E-Money / Dompet Digital</Text>
               <View style={styles.emoneyProviderGrid}>
                 {emoneyProviderList.map((prov) => {
                   const isSelected = selectedEmoneyProvider === prov.id;
@@ -519,16 +893,21 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
           <>
             <View style={styles.inputCard}>
               <View style={styles.serviceBrandHeader}>
-                <View style={[styles.serviceBrandLogoWrap, { backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }]}>
+                <View style={styles.serviceBrandLogoWrap}>
                   <Image source={pdamLogo} style={styles.serviceBrandLogo} resizeMode="contain" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.serviceBrandTitle}>PDAM Air Minum</Text>
+                  <View style={styles.serviceBrandTitleRow}>
+                    <Text style={styles.serviceBrandTitle}>PDAM Air Minum</Text>
+                    <View style={styles.serviceBrandBadge}>
+                      <Text style={styles.serviceBrandBadgeText}>Tagihan Resmi</Text>
+                    </View>
+                  </View>
                   <Text style={styles.serviceBrandSub}>Pembayaran Rekening Air Bersih Daerah</Text>
                 </View>
               </View>
 
-              <Text style={[styles.inputCardLabel, { marginTop: 12 }]}>Wilayah Layanan PDAM</Text>
+              <Text style={[styles.inputCardLabel, { marginTop: 4 }]}>Wilayah Layanan PDAM</Text>
               <View style={styles.inputBoxRow}>
                 <AppIcon name="pdam" size={16} color="#0284c7" />
                 <TextInput
@@ -568,8 +947,8 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
                   >
                     <AppIcon
                       name={isPdamPaid ? 'check-circle' : 'receipt'}
-                      size={18}
-                      color={isPdamPaid ? '#16a34a' : '#ef4444'}
+                      size={16}
+                      color="#ffffff"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -684,16 +1063,21 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
           <>
             <View style={styles.inputCard}>
               <View style={styles.serviceBrandHeader}>
-                <View style={[styles.serviceBrandLogoWrap, { backgroundColor: '#f0fdfa', borderColor: '#99f6e4' }]}>
+                <View style={styles.serviceBrandLogoWrap}>
                   <Image source={bpjsLogo} style={styles.serviceBrandLogo} resizeMode="contain" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.serviceBrandTitle}>BPJS Kesehatan & Ketenagakerjaan</Text>
-                  <Text style={styles.serviceBrandSub}>Iuran Jaminan Sosial Nasional</Text>
+                  <View style={styles.serviceBrandTitleRow}>
+                    <Text style={styles.serviceBrandTitle}>BPJS Kesehatan & Ketenagakerjaan</Text>
+                    <View style={styles.serviceBrandBadge}>
+                      <Text style={styles.serviceBrandBadgeText}>Iuran Resmi</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.serviceBrandSub}>Pembayaran Iuran Jaminan Sosial Nasional</Text>
                 </View>
               </View>
 
-              <Text style={[styles.inputCardLabel, { marginTop: 12 }]}>Pilih Layanan BPJS</Text>
+              <Text style={[styles.inputCardLabel, { marginTop: 4 }]}>Pilih Layanan BPJS</Text>
               <View style={styles.bpjsTypeRow}>
                 <TouchableOpacity
                   style={[styles.bpjsTypeBtn, bpjsType === 'kesehatan' && styles.bpjsTypeBtnActive]}
@@ -747,8 +1131,8 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
                   >
                     <AppIcon
                       name={isBpjsPaid ? 'check-circle' : 'receipt'}
-                      size={18}
-                      color={isBpjsPaid ? '#16a34a' : '#ef4444'}
+                      size={16}
+                      color="#ffffff"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -783,7 +1167,7 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
             <Text style={styles.sectionTitle}>Rincian Tagihan BPJS</Text>
             <View style={styles.billInquiryCard}>
               <View style={styles.billHeaderRow}>
-                <View style={[styles.billIconCircle, { backgroundColor: 'rgba(13, 148, 136, 0.15)' }]}>
+                <View style={[styles.billIconCircle, { backgroundColor: '#0d9488' }]}>
                   <Image source={bpjsLogo} style={{ width: 24, height: 24 }} resizeMode="contain" />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -863,7 +1247,7 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
               <Text style={styles.checkoutTotalLabel}>
                 {((mode === 'bpjs' && isBpjsPaid) || (mode === 'pdam' && isPdamPaid))
                   ? 'Status Tagihan:'
-                  : 'Total Bayar (Simpanan Sukarela):'}
+                  : 'Total Tagihan:'}
               </Text>
               <Text
                 style={[
@@ -890,89 +1274,31 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
                 {mode === 'bpjs'
                   ? isBpjsPaid
                     ? 'Sudah Lunas'
-                    : 'Bayar Tagihan'
+                    : 'Bayar Sekarang'
                   : mode === 'pdam'
                   ? isPdamPaid
                     ? 'Sudah Lunas'
-                    : 'Bayar Tagihan'
-                  : 'Beli Sekarang'}
+                    : 'Bayar Sekarang'
+                  : 'Bayar Sekarang'}
               </Text>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
 
-      {/* 5. MODAL PIN KEAMANAN */}
-      <Modal visible={pinModalVisible} transparent animationType="slide" onRequestClose={() => setPinModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleRow}>
-                <AppIcon name="lock" size={17} color="#1d72db" />
-                <Text style={styles.modalTitle}>Konfirmasi Pembayaran</Text>
-              </View>
-              <TouchableOpacity onPress={() => setPinModalVisible(false)} style={styles.modalCloseBtn}>
-                <AppIcon name="x" size={14} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            {getEffectiveProduct() && (
-              <View style={styles.confirmSummaryBox}>
-                <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Layanan</Text>
-                  <Text style={styles.confirmValBold}>{getEffectiveProduct()?.title}</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Tujuan / ID</Text>
-                  <Text style={styles.confirmVal}>
-                    {mode === 'token'
-                      ? meterNumber
-                      : mode === 'emoney'
-                      ? `${selectedEmoneyProvider.toUpperCase()} - ${emoneyNumber}`
-                      : mode === 'pdam'
-                      ? pdamNumber
-                      : mode === 'bpjs'
-                      ? bpjsNumber
-                      : phoneNumber}
-                  </Text>
-                </View>
-                <View style={styles.confirmDivider} />
-                <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Total Potong Simpanan</Text>
-                  <Text style={styles.confirmValGreen}>Rp {formatRupiah(getEffectiveProduct()?.price || 0)}</Text>
-                </View>
-              </View>
-            )}
-
-            <Text style={styles.pinInstruction}>Masukkan 6-Digit PIN Transaksi:</Text>
-            <TextInput
-              style={styles.pinInputField}
-              value={pinInput}
-              onChangeText={(v) => setPinInput(v.replace(/[^0-9]/g, '').slice(0, 6))}
-              keyboardType="numeric"
-              secureTextEntry
-              placeholder="••••••"
-              placeholderTextColor="#94a3b8"
-              maxLength={6}
-              autoFocus
-            />
-
-            <View style={styles.modalActionRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setPinModalVisible(false)}>
-                <Text style={styles.modalCancelText}>Batal</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.modalConfirmBtn} onPress={handleConfirmPIN} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.modalConfirmText}>Konfirmasi Bayar</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* 5. MODAL GENERATE QR CODE PEMBAYARAN VIA SCAN QRIS */}
+      {getEffectiveProduct() && (
+        <QrisPaymentModal
+          visible={qrisModalVisible}
+          onClose={() => setQrisModalVisible(false)}
+          serviceTitle={getEffectiveProduct()?.title || ''}
+          serviceType={mode}
+          targetNumber={getTargetNumber()}
+          customerName={mode === 'pdam' || mode === 'bpjs' ? 'Budi Santoso' : undefined}
+          amount={getEffectiveProduct()?.price || 0}
+          onPaymentConfirmed={handleConfirmQRISPayment}
+        />
+      )}
 
       {/* 6. MODAL SUKSES TRANSAKSI */}
       <Modal visible={successModalVisible} transparent animationType="fade" onRequestClose={() => setSuccessModalVisible(false)}>
@@ -982,9 +1308,9 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
               <AppIcon name="check-circle" size={42} color="#16a34a" />
             </View>
 
-            <Text style={styles.successTitle}>Transaksi Berhasil!</Text>
+            <Text style={styles.successTitle}>Pembayaran Berhasil!</Text>
             <Text style={styles.successSub}>
-              Pembayaran telah didebit dari Simpanan Sukarela Anda.
+              Pembayaran QRIS telah diverifikasi lunas.
             </Text>
 
             {lastTxData && (
@@ -1002,6 +1328,10 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
                   <Text style={styles.receiptVal}>{lastTxData.txNo}</Text>
                 </View>
                 <View style={styles.receiptRow}>
+                  <Text style={styles.receiptLabel}>Metode Pembayaran</Text>
+                  <Text style={styles.receiptVal}>{lastTxData.paymentSource || 'QRIS'}</Text>
+                </View>
+                <View style={styles.receiptRow}>
                   <Text style={styles.receiptLabel}>Total Bayar</Text>
                   <Text style={styles.receiptValGreen}>Rp {formatRupiah(lastTxData.price)}</Text>
                 </View>
@@ -1015,6 +1345,27 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
               </View>
             )}
 
+            {/* Quick Action: Cetak & Bagikan Bukti */}
+            <View style={styles.receiptActionRow}>
+              <TouchableOpacity
+                style={styles.receiptActionBtn}
+                onPress={handlePrintReceipt}
+                activeOpacity={0.75}
+              >
+                <AppIcon name="printer" size={15} color="#1d72db" />
+                <Text style={styles.receiptActionBtnText}>Cetak Bukti</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.receiptActionBtn}
+                onPress={handleShareReceipt}
+                activeOpacity={0.75}
+              >
+                <AppIcon name="share" size={15} color="#1d72db" />
+                <Text style={styles.receiptActionBtnText}>Bagikan Bukti</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={styles.doneBtn}
               onPress={() => {
@@ -1024,6 +1375,101 @@ export const PulsaScreen: React.FC<PulsaScreenProps> = ({
               activeOpacity={0.85}
             >
               <Text style={styles.doneBtnText}>Selesai & Kembali ke Beranda</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 7. MODAL BAGIKAN BUKTI TRANSAKSI (MULTI-APP) */}
+      <Modal visible={shareModalVisible} transparent animationType="slide" onRequestClose={() => setShareModalVisible(false)}>
+        <View style={styles.shareModalOverlay}>
+          <View style={styles.shareModalCard}>
+            <View style={styles.shareHeader}>
+              <View>
+                <Text style={styles.shareTitle}>Bagikan Bukti Pembayaran</Text>
+                <Text style={styles.shareSub}>Pilih aplikasi untuk mengirim struk transaksi resmi</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShareModalVisible(false)}
+                style={styles.shareCloseBtn}
+                activeOpacity={0.7}
+              >
+                <AppIcon name="x" size={16} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {copiedToast && (
+              <View style={styles.copiedToastBadge}>
+                <AppIcon name="check-circle" size={13} color="#ffffff" />
+                <Text style={styles.copiedToastText}>Teks struk berhasil disalin ke clipboard!</Text>
+              </View>
+            )}
+
+            {/* App Buttons Grid */}
+            <View style={styles.shareAppsRow}>
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleShareToWhatsApp}
+                activeOpacity={0.75}
+              >
+                <Image
+                  source={waLogo}
+                  style={styles.shareAppImgLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.shareAppName}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleShareToTelegram}
+                activeOpacity={0.75}
+              >
+                <Image
+                  source={teleLogo}
+                  style={styles.shareAppImgLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.shareAppName}>Telegram</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleCopyReceiptText}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shareAppIconBox, { backgroundColor: '#1d72db' }]}>
+                  <AppIcon name="copy" size={20} color="#ffffff" />
+                </View>
+                <Text style={styles.shareAppName}>Salin Teks</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleShareToEmail}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shareAppIconBox, { backgroundColor: '#6366f1' }]}>
+                  <AppIcon name="mail" size={20} color="#ffffff" />
+                </View>
+                <Text style={styles.shareAppName}>Email</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Preview Box */}
+            <View style={styles.sharePreviewCard}>
+              <Text style={styles.sharePreviewHeader}>PREVIEW PESAN STRUK:</Text>
+              <Text style={styles.sharePreviewContent} numberOfLines={5}>
+                {getReceiptShareText()}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.shareCancelBtn}
+              onPress={() => setShareModalVisible(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.shareCancelBtnText}>Tutup</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1154,6 +1600,72 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
+  serviceBrandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1d72db',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1751c9',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  serviceBrandLogoWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2.5,
+    elevation: 2,
+  },
+  serviceBrandLogo: {
+    width: 32,
+    height: 32,
+  },
+  serviceBrandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  serviceBrandTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: -0.2,
+    flex: 1,
+  },
+  serviceBrandBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  serviceBrandBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  serviceBrandSub: {
+    fontSize: 10,
+    color: '#dbeafe',
+    marginTop: 2,
+    fontWeight: '500',
+    lineHeight: 14,
+  },
   inputCardLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -1240,17 +1752,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inquiryStatusIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
   inquiryStatusIconUnpaid: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: '#ef4444',
   },
   inquiryStatusIconPaid: {
-    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+    backgroundColor: '#16a34a',
   },
   inquiryStatusHeading: {
     fontSize: 11,
@@ -1313,12 +1830,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   billIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#0284c7',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
   billTitleText: {
     fontSize: 12,
@@ -1710,6 +2232,29 @@ const styles = StyleSheet.create({
     color: '#d97706',
     letterSpacing: 1,
   },
+  receiptActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+    marginBottom: 10,
+  },
+  receiptActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  receiptActionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1d72db',
+  },
   doneBtn: {
     width: '100%',
     backgroundColor: '#1d72db',
@@ -1723,41 +2268,131 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  /* Service Brand Headers & Logo Cards */
-  serviceBrandHeader: {
+  /* Share Modal Styles */
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    justifyContent: 'flex-end',
+  },
+  shareModalCard: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 24,
+    maxHeight: '85%',
+  },
+  shareHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#f8fafc',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 4,
+    marginBottom: 16,
   },
-  serviceBrandLogoWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#fff7ed',
-    borderWidth: 1,
-    borderColor: '#fed7aa',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  serviceBrandLogo: {
-    width: 26,
-    height: 26,
-  },
-  serviceBrandTitle: {
-    fontSize: 11.5,
+  shareTitle: {
+    fontSize: 15.5,
     fontWeight: '800',
     color: '#0f172a',
   },
-  serviceBrandSub: {
-    fontSize: 9.5,
+  shareSub: {
+    fontSize: 10.5,
     color: '#64748b',
     marginTop: 1,
+  },
+  shareCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copiedToastBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  copiedToastText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  shareAppsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 14,
+  },
+  shareAppItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  shareAppImgLogo: {
+    width: 40,
+    height: 40,
+    marginBottom: 6,
+    borderRadius: 20,
+  },
+  shareAppIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  shareAppName: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  sharePreviewCard: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  sharePreviewHeader: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748b',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  sharePreviewContent: {
+    fontSize: 10,
+    color: '#334155',
+    lineHeight: 14,
+  },
+  shareCancelBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  shareCancelBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748b',
   },
 
   /* E-Money Grid with Real Logos */
@@ -1802,5 +2437,60 @@ const styles = StyleSheet.create({
   emoneyProvTextActive: {
     color: '#1d72db',
     fontWeight: '800',
+  },
+  paymentInfoBannerModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    marginBottom: 10,
+  },
+  paymentInfoBannerModalText: {
+    flex: 1,
+    fontSize: 9.5,
+    color: '#1d72db',
+    lineHeight: 13,
+  },
+  modalMethodLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#64748b',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  modalMethodList: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  modalMethodItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#f8fafc',
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  modalMethodItemActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#1d72db',
+  },
+  modalMethodText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  modalMethodTextActive: {
+    color: '#1d72db',
   },
 });

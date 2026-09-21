@@ -196,15 +196,6 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
       Alert.alert('Nomor Tidak Valid', 'Silakan masukkan nomor handphone yang valid.');
       return;
     }
-    if (userBalance < selectedProduct.price) {
-      Alert.alert(
-        'Saldo Tidak Cukup',
-        `Saldo koperasi Rp ${formatRupiah(userBalance)}. Kurang untuk membeli Rp ${formatRupiah(
-          selectedProduct.price
-        )}.`
-      );
-      return;
-    }
 
     if (onPurchaseSuccess) {
       onPurchaseSuccess(selectedProduct.price, selectedProduct.title);
@@ -214,7 +205,7 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
       'Transaksi Berhasil! 📱',
       `Berhasil membeli ${selectedProduct.title} untuk nomor ${phoneNumber}.\n\nTotal: Rp ${formatRupiah(
         selectedProduct.price
-      )}\nSN: 8912739102931209`,
+      )}\nMetode: Payment Gateway Pihak Ke-3 (QRIS/VA)\nSN: 8912739102931209\n\nCatatan: Saldo Simpanan Koperasi tidak dipotong.`,
       [
         {
           text: 'Tutup',
@@ -237,7 +228,7 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.titleRow}>
               <View style={styles.headerIconCircle}>
-                <AppIcon name="pulsa" size={18} color="#0284c7" />
+                <AppIcon name="pulsa" size={17} color="#ffffff" />
               </View>
               <View>
                 <Text style={styles.modalTitle}>Pulsa & Paket Data</Text>
@@ -250,24 +241,15 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollBody}>
-            {/* Hero Wallet Balance Card (Blue Theme) */}
-            <View style={styles.heroBalanceCard}>
-              <View style={styles.heroGlowCircle} />
-              <View style={styles.heroBalanceTop}>
-                <View style={styles.heroLabelWrap}>
-                  <AppIcon name="wallet" size={14} color="#38bdf8" />
-                  <Text style={styles.heroBalanceLabel}>Sumber Dana: Saldo Koperasi</Text>
-                </View>
+            {/* Info Banner Pihak ke-3 */}
+            <View style={styles.heroInfoBanner}>
+              <View style={styles.heroInfoIconBox}>
+                <AppIcon name="pulsa" size={18} color="#1d72db" />
               </View>
-
-              <View style={styles.heroBalanceMain}>
-                <Text style={styles.heroCurrency}>Rp</Text>
-                <Text style={styles.heroBalanceAmount}>{formatRupiah(userBalance)}</Text>
-              </View>
-
-              <View style={styles.heroFooter}>
-                <Text style={styles.heroSubText}>
-                  Bisa bayar langsung via Saldo Koperasi atau Potong Gaji Payroll
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroInfoTitle}>Layanan Pulsa & Paket Data</Text>
+                <Text style={styles.heroInfoSub}>
+                  Pembayaran diproses via Payment Gateway Mitra Pihak Ke-3 secara instan & langsung aktif (Saldo Simpanan Koperasi tidak dipotong).
                 </Text>
               </View>
             </View>
@@ -428,7 +410,7 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
             {selectedProduct && (
               <View style={styles.checkoutFooter}>
                 <View style={styles.checkoutSummary}>
-                  <Text style={styles.checkoutSummaryLabel}>Total Bayar (Saldo Koperasi):</Text>
+                  <Text style={styles.checkoutSummaryLabel}>Total Bayar (Pihak Ke-3):</Text>
                   <View style={styles.checkoutSummaryValueRow}>
                     <Text style={styles.checkoutCurrency}>Rp</Text>
                     <Text style={styles.checkoutSummaryValue}>
@@ -456,25 +438,28 @@ export const PulsaModal: React.FC<PulsaModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   titleRow: {
     flexDirection: 'row',
@@ -484,18 +469,20 @@ const styles = StyleSheet.create({
   headerIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: '#e0f2fe',
+    borderRadius: 11,
+    backgroundColor: '#2563eb',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
   modalTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#0f172a',
-    letterSpacing: -0.2,
   },
   modalSub: {
     fontSize: 10.5,
@@ -503,80 +490,57 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollBody: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 24,
   },
-  heroBalanceCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    overflow: 'hidden',
-    position: 'relative',
+  heroInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#1d72db',
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#1751c9',
+    marginBottom: 12,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  heroGlowCircle: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(2, 132, 199, 0.35)',
-  },
-  heroBalanceTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  heroInfoIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
-  heroLabelWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  heroBalanceLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94a3b8',
-  },
-  heroBalanceMain: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-    marginVertical: 2,
-  },
-  heroCurrency: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#38bdf8',
-  },
-  heroBalanceAmount: {
-    fontSize: 22,
-    fontWeight: '700',
+  heroInfoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#ffffff',
-    letterSpacing: -0.5,
   },
-  heroFooter: {
-    marginTop: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  heroSubText: {
-    fontSize: 10,
-    color: '#94a3b8',
-    fontWeight: '600',
+  heroInfoSub: {
+    fontSize: 9.5,
+    color: '#dbeafe',
+    marginTop: 2,
+    lineHeight: 13,
   },
   phoneInputCard: {
     backgroundColor: '#ffffff',

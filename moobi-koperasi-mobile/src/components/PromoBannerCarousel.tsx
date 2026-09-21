@@ -127,7 +127,7 @@ export const PromoBannerCarousel: React.FC = () => {
   const handleBannerPress = (slide: PromoSlide) => {
     Alert.alert(
       `Promo Khusus: ${slide.brand} 🎁`,
-      `Produk: ${slide.productName}\nHarga Spesial Karyawan: ${slide.productPrice}\n\nFasilitas Pembayaran:\n• Potong Slip Gaji (Bunga 0%)\n• Saldo Koperasi & Kantin\n• Ambil langsung di Koperasi PT Bakti Idola Tama`
+      `Produk: ${slide.productName}\nHarga Spesial Karyawan: ${slide.productPrice}\n\nFasilitas Pembayaran:\n• Potong Slip Gaji (Bunga 0%)\n• Payment Gateway Pihak Ke-3 (VA/QRIS)\n• Ambil langsung di Loket Koperasi PT Bakti Idola Tama`
     );
   };
 

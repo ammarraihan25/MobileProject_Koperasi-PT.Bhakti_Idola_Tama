@@ -202,14 +202,14 @@ export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
             </View>
 
             <Text style={styles.gridCardTitleSukarela}>Simpanan Sukarela</Text>
-            <Text style={styles.gridCardSubSukarela}>Belanja & Kantin BIT</Text>
+            <Text style={styles.gridCardSubSukarela}>Khusus Penarikan Dana</Text>
 
             <Text style={styles.gridAmountSukarela}>
               Rp {formatRupiah(effectiveSukarela)}
             </Text>
 
             <View style={styles.gridFooterRow}>
-              <Text style={styles.gridFooterTextSukarela}>Bebas Admin</Text>
+              <Text style={styles.gridFooterTextSukarela}>Payroll Bulanan</Text>
               <View style={styles.gridDetailPillSukarela}>
                 <Text style={styles.gridDetailPillTextSukarela}>Detail ›</Text>
               </View>
@@ -232,7 +232,6 @@ export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
         {/* 6. KETENTUAN & KEBIJAKAN KEUANGAN KOPERASI */}
         <View style={styles.infoSummaryCard}>
           <View style={styles.infoSummaryHeader}>
-            <AppIcon name="check-circle" size={14} color="#1d72db" />
             <Text style={styles.infoSummaryHeading}>Ketentuan Keuangan Anggota PT BIT</Text>
           </View>
 
@@ -246,7 +245,7 @@ export const KeuanganScreen: React.FC<KeuanganScreenProps> = ({
             <View style={styles.infoItem}>
               <View style={styles.infoBullet} />
               <Text style={styles.infoItemText}>
-                <Text style={styles.boldDark}>Simpanan Sukarela</Text> dapat disetor dan ditarik fleksibel serta digunakan belanja Kantin BIT, elektronik, dan PPoB.
+                <Text style={styles.boldDark}>Simpanan Sukarela</Text> tabungan fleksibel anggota yang hanya dapat disetor & ditarik dana ke rekening payroll (bukan untuk pembayaran belanja).
               </Text>
             </View>
             <View style={styles.infoItem}>
@@ -779,8 +778,21 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 8,
   },
+  infoSummaryIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   infoSummaryHeading: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0f172a',
   },

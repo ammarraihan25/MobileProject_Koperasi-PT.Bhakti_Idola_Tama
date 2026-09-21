@@ -2,7 +2,6 @@ export type TabType = 'beranda' | 'keuangan' | 'riwayat' | 'profil';
 
 export type ActiveScreenType =
   | TabType
-  | 'produk'
   | 'transfer'
   | 'tarik'
   | 'tagihan'
@@ -70,7 +69,7 @@ export interface UserProfile {
 }
 
 export interface KoperasiWallet {
-  saldoUtama: number; // Saldo Simpanan Sukarela yang dapat digunakan untuk transaksi
+  saldoUtama: number; // Saldo Simpanan Sukarela tabungan anggota (hanya untuk penarikan dana)
   saldoKantin?: number;
   moobiCoins: number;
 
@@ -81,9 +80,16 @@ export interface KoperasiWallet {
   sisaTenorBulan: number;
   simpananPokok: number;
   simpananWajib: number; // Terkunci s.d. 1 thn masa kerja
-  simpananSukarela: number;
+  simpananSukarela: number; // Tabungan sukarela, khusus penarikan dana
   estimasiPotongGajiBulanIni: number;
   estimasiBagiHasilSHU: number;
+}
+
+export interface TransactionItemDetail {
+  name: string;
+  qty?: number;
+  price?: number;
+  note?: string;
 }
 
 export interface TransactionItem {
@@ -93,13 +99,23 @@ export interface TransactionItem {
   description: string;
   amount: number;
   isCredit: boolean; // true = dana masuk (+), false = transaksi keluar/potongan (-)
-  paymentSource: string; // 'Simpanan Sukarela' | 'Moobi Coins' | 'Potong Gaji Payroll'
+  paymentSource: string; // 'Payment Gateway (Pihak Ke-3)' | 'QRIS Pihak Ke-3' | 'Virtual Account' | 'Potong Gaji Payroll' | 'Simpanan Sukarela (Penarikan)'
   timestamp: string;
   dateLabel: string;
   monthLabel: string;
   iconName: string;
   statusText?: string;
   referenceNo?: string;
+  itemDetails?: TransactionItemDetail[];
+  metadata?: {
+    locationOrStand?: string;
+    warranty?: string;
+    payrollPeriod?: string;
+    slipNo?: string;
+    bankAccount?: string;
+    accountHolder?: string;
+    notes?: string;
+  };
 }
 
 export interface KantinMenuItem {

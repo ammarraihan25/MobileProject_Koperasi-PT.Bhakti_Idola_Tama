@@ -10,9 +10,14 @@ import {
   Modal,
   ActivityIndicator,
   Image,
+  Linking,
 } from 'react-native';
 import { AppIcon } from '../../components/common/AppIcon';
 import { mockWallet, mockUser } from '../../data/mockData';
+import { QrisPaymentModal } from '../../components/modals/QrisPaymentModal';
+
+const waLogo = require('../../../assets/page/wa.png');
+const teleLogo = require('../../../assets/page/tele.png');
 
 const supportedQrisChannels = [
   { id: 'bca', name: 'BCA', logo: require('../../../assets/transfer/bca.png') },
@@ -27,7 +32,7 @@ const supportedQrisChannels = [
   { id: 'linkaja', name: 'LinkAja', logo: require('../../../assets/transfer/linkaja.png') },
 ];
 
-type LoanScreenStage = 'form' | 'verification_calculation' | 'pending_verification';
+type LoanScreenStage = 'form' | 'verification_calculation' | 'authorization_pin' | 'pending_verification';
 
 export interface SubmittedLoanTicket {
   ticketNo: string;
@@ -147,7 +152,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
 
   // Repayment Modal States (Pelunasan Pinjaman Berjalan)
   const [repayModalVisible, setRepayModalVisible] = useState<boolean>(false);
-  const [repayPaymentMethod, setRepayPaymentMethod] = useState<'simpanan' | 'qris'>('simpanan');
+  const [repayPaymentMethod, setRepayPaymentMethod] = useState<'qris' | 'va'>('qris');
   const [repayAmountInput, setRepayAmountInput] = useState<string>(
     currentPinjamanAktif > 0 ? currentPinjamanAktif.toString() : '0'
   );
@@ -274,6 +279,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
         onApplySuccess(parsedAmount, selectedTenor);
       }
 
+      setIsFormVisible(false);
       setStage('pending_verification');
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }, 700);
@@ -353,24 +359,9 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
       return;
     }
 
-    if (repayPaymentMethod === 'simpanan') {
-      if (isRepayInsufficient) {
-        Alert.alert(
-          'Simpanan Sukarela Kurang',
-          `Saldo Simpanan Sukarela Anda (Rp ${formatRupiah(userBalance)}) tidak cukup untuk membayar Rp ${formatRupiah(
-            parsedRepay
-          )}.`
-        );
-        return;
-      }
-      setRepayPinInput('');
-      setRepayModalVisible(false);
-      setRepayPinModalVisible(true);
-    } else {
-      // Bayar via QRIS Koperasi
-      setRepayModalVisible(false);
-      setQrisModalVisible(true);
-    }
+    // Bayar via Payment Gateway (QRIS / VA)
+    setRepayModalVisible(false);
+    setQrisModalVisible(true);
   };
 
   const handleConfirmRepayWithPin = () => {
@@ -412,38 +403,188 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
     }, 700);
   };
 
+  const [repayShareModalVisible, setRepayShareModalVisible] = useState<boolean>(false);
+  const [repayCopiedToast, setRepayCopiedToast] = useState<boolean>(false);
+
+  const generateRepaymentReceiptHtml = (data: {
+    amount: number;
+    remainingDebt: number;
+    ticketNo: string;
+    method: string;
+    borrowerName: string;
+  }) => {
+    const now = new Date();
+    const dateStr = `${now.getDate()} Sep 2026`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+    const formatR = (val: number) => new Intl.NumberFormat('id-ID').format(val);
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Bukti Pembayaran Angsuran - ${data.ticketNo}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body { background: #f8fafc; color: #0f172a; padding: 24px 12px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .receipt-card { background: #ffffff; width: 100%; max-width: 440px; border-radius: 16px; border: 1.5px solid #cbd5e1; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+    .header { text-align: center; padding-bottom: 16px; border-bottom: 2px dashed #cbd5e1; margin-bottom: 16px; }
+    .badge-success { display: inline-block; background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 999px; margin-bottom: 10px; border: 1px solid #86efac; }
+    .company-title { font-size: 16px; font-weight: 900; color: #0f172a; letter-spacing: 0.5px; }
+    .sub-title { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .info-table td { padding: 7px 0; font-size: 12px; vertical-align: top; }
+    .info-table td.label { color: #64748b; width: 45%; }
+    .info-table td.val { font-weight: 700; color: #0f172a; text-align: right; }
+    .divider { height: 1.5px; border-top: 1.5px dashed #cbd5e1; margin: 12px 0; }
+    .total-row td { font-size: 14px; font-weight: 900; padding-top: 10px; }
+    .footer { text-align: center; font-size: 10px; color: #94a3b8; line-height: 1.5; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 18px; }
+    .print-btn { flex: 1; background: #1d72db; color: #ffffff; border: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    @media print { body { background: #ffffff; padding: 0; } .receipt-card { box-shadow: none; border: none; max-width: 100%; } .btn-row { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="receipt-card">
+    <div class="header">
+      <div class="badge-success">PEMBAYARAN ANGSURAN BERHASIL</div>
+      <h1 class="company-title">PT BAKTI IDOLA TAMA</h1>
+      <p class="sub-title">Moobi Koperasi Karyawan • Bukti Resmi Pelunasan</p>
+    </div>
+    <table class="info-table">
+      <tr><td class="label">Nomor Referensi</td><td class="val">${data.ticketNo}</td></tr>
+      <tr><td class="label">Waktu Transaksi</td><td class="val">${dateStr}, ${timeStr}</td></tr>
+      <tr><td class="label">Nama Anggota</td><td class="val">${data.borrowerName}</td></tr>
+      <tr><td class="label">Jenis Transaksi</td><td class="val">Pelunasan / Angsuran Pinjaman</td></tr>
+      <tr><td class="label">Metode Pembayaran</td><td class="val">${data.method}</td></tr>
+      <tr><td class="label">Status</td><td class="val" style="color: #16a34a; font-weight: 800;">Lunas (Verified)</td></tr>
+    </table>
+    <div class="divider"></div>
+    <table class="info-table">
+      <tr class="total-row">
+        <td style="color: #0f172a;">Jumlah Dibayar</td>
+        <td class="val" style="color: #16a34a; font-size: 15px;">Rp ${formatR(data.amount)}</td>
+      </tr>
+      <tr>
+        <td class="label" style="font-weight: 700; color: #0f172a;">Sisa Kewajiban Pokok</td>
+        <td class="val" style="color: #0f172a; font-size: 13px;">Rp ${formatR(data.remainingDebt)}</td>
+      </tr>
+    </table>
+    <div class="btn-row">
+      <button class="print-btn" onclick="window.print()">Cetak / Simpan PDF</button>
+    </div>
+    <div class="footer">
+      Struk ini merupakan bukti transaksi digital yang sah dari Koperasi PT BIT.<br>
+      Terima kasih telah melakukan pembayaran tepat waktu.
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  const getRepayShareText = () => {
+    if (!lastRepayData) return '';
+    return `*BUKTI PEMBAYARAN ANGSURAN PINJAMAN - PT BAKTI IDOLA TAMA*
+━━━━━━━━━━━━━━━━━━━━
+🏢 *Koperasi PT Bakti Idola Tama*
+📄 *No. Referensi:* ${lastRepayData.ticketNo}
+👤 *Nama Anggota:* ${mockUser.name}
+💰 *Jumlah Dibayar:* Rp ${formatRupiah(lastRepayData.amount)}
+💳 *Metode:* ${lastRepayData.method}
+📉 *Sisa Pokok:* Rp ${formatRupiah(lastRepayData.remainingDebt)}
+✅ *Status:* LUNAS (TERVERIFIKASI)
+━━━━━━━━━━━━━━━━━━━━
+_Bukti pembayaran digital ini sah dan diterbitkan otomatis oleh sistem Moobi Koperasi PT BIT._`;
+  };
+
+  const handleDownloadRepayReceipt = () => {
+    if (!lastRepayData) return;
+    try {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const html = generateRepaymentReceiptHtml({
+          amount: lastRepayData.amount,
+          remainingDebt: lastRepayData.remainingDebt,
+          ticketNo: lastRepayData.ticketNo,
+          method: lastRepayData.method,
+          borrowerName: mockUser.name,
+        });
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Bukti_Pelunasan_PT_BIT_${lastRepayData.ticketNo}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+      Alert.alert(
+        'Bukti Pembayaran Diunduh 📄',
+        `Bukti transaksi resmi (${lastRepayData.ticketNo}) berhasil diunduh. Anda dapat membuka atau mencetaknya sebagai dokumen PDF.`
+      );
+    } catch (e) {
+      Alert.alert('Cetak Bukti', `Bukti transaksi ${lastRepayData.ticketNo} siap dicetak.`);
+    }
+  };
+
+  const handleShareRepayWhatsApp = () => {
+    const text = encodeURIComponent(getRepayShareText());
+    const waUrl = `https://api.whatsapp.com/send?text=${text}`;
+    if (typeof window !== 'undefined') {
+      window.open(waUrl, '_blank');
+    } else {
+      Linking.openURL(waUrl).catch(() => {});
+    }
+    setRepayShareModalVisible(false);
+  };
+
+  const handleShareRepayTelegram = () => {
+    const text = encodeURIComponent(getRepayShareText());
+    const tgUrl = `https://t.me/share/url?url=&text=${text}`;
+    if (typeof window !== 'undefined') {
+      window.open(tgUrl, '_blank');
+    } else {
+      Linking.openURL(tgUrl).catch(() => {});
+    }
+    setRepayShareModalVisible(false);
+  };
+
+  const handleCopyRepayText = () => {
+    const text = getRepayShareText();
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setRepayCopiedToast(true);
+    setTimeout(() => setRepayCopiedToast(false), 2000);
+  };
+
   const handleConfirmQrisRepayment = () => {
-    setIsQrisProcessing(true);
-    setTimeout(() => {
-      setIsQrisProcessing(false);
-      setQrisModalVisible(false);
+    setQrisModalVisible(false);
 
-      const actualRepay = Math.min(parsedRepay, currentPinjamanAktif);
-      const remainingDebt = Math.max(0, currentPinjamanAktif - actualRepay);
-      const remainingBalance = userBalance;
-      const ticketNo = `QRIS-PAY-${Date.now().toString().slice(-6)}`;
+    const actualRepay = Math.min(parsedRepay, currentPinjamanAktif);
+    const remainingDebt = Math.max(0, currentPinjamanAktif - actualRepay);
+    const remainingBalance = userBalance;
+    const ticketNo = `QRIS-PAY-${Date.now().toString().slice(-6)}`;
 
-      setCurrentPinjamanAktif(remainingDebt);
-      if (remainingDebt === 0) {
-        setCurrentAngsuran(0);
-        setCurrentSisaTenor(0);
-        setIsFormVisible(true);
-      }
+    setCurrentPinjamanAktif(remainingDebt);
+    if (remainingDebt === 0) {
+      setCurrentAngsuran(0);
+      setCurrentSisaTenor(0);
+      setIsFormVisible(true);
+    }
 
-      setLastRepayData({
-        amount: actualRepay,
-        remainingDebt,
-        remainingBalance,
-        ticketNo,
-        method: 'QRIS Koperasi PT BIT',
-      });
+    setLastRepayData({
+      amount: actualRepay,
+      remainingDebt,
+      remainingBalance,
+      ticketNo,
+      method: 'QRIS Koperasi PT BIT',
+    });
 
-      if (onRepaySuccess) {
-        onRepaySuccess(actualRepay);
-      }
+    if (onRepaySuccess) {
+      onRepaySuccess(actualRepay);
+    }
 
-      setRepaySuccessModalVisible(true);
-    }, 900);
+    setRepaySuccessModalVisible(true);
   };
 
   return (
@@ -452,7 +593,11 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
       <View style={styles.topNavBar}>
         <TouchableOpacity
           onPress={() => {
-            if (stage === 'verification_calculation') {
+            if (stage === 'authorization_pin') {
+              setStage('verification_calculation');
+            } else if (stage === 'verification_calculation') {
+              setStage('form');
+            } else if (stage === 'pending_verification') {
               setStage('form');
             } else {
               onBack();
@@ -492,26 +637,39 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
             <View style={styles.plafonSummaryCard}>
               <View style={styles.plafonSummaryRow}>
                 <View style={styles.plafonCol}>
-                  <Text style={styles.plafonLabel}>Gaji Pokok</Text>
-                  <Text style={styles.plafonVal}>Rp {formatRupiah(gajiBulanan)}</Text>
+                  <Text style={styles.plafonLabel} numberOfLines={1}>Gaji Pokok</Text>
+                  <Text style={styles.plafonVal} numberOfLines={1}>Rp {formatRupiah(gajiBulanan)}</Text>
                 </View>
                 <View style={styles.plafonDivider} />
-                <View style={styles.plafonCol}>
-                  <Text style={styles.plafonLabel}>Batas 30% Gaji</Text>
-                  <Text style={styles.plafonVal}>Rp {formatRupiah(maxDeductionPerMonth)}/bln</Text>
+                <View style={[styles.plafonCol, { flex: 1.05 }]}>
+                  <Text style={styles.plafonLabel} numberOfLines={1}>Batas 30% Gaji</Text>
+                  <Text style={styles.plafonVal} numberOfLines={1}>
+                    Rp {formatRupiah(maxDeductionPerMonth)}
+                    <Text style={styles.plafonValUnit}>/bln</Text>
+                  </Text>
                 </View>
                 <View style={styles.plafonDivider} />
-                <View style={styles.plafonCol}>
-                  <Text style={styles.plafonLabelBlue}>Maks. Plafon</Text>
-                  <Text style={styles.plafonValBlue}>Rp {formatRupiah(effectiveMaxPlafon)}</Text>
+                <View style={[styles.plafonCol, styles.plafonColHighlight, { flex: 1.1 }]}>
+                  <Text style={styles.plafonLabelBlue} numberOfLines={1}>Maks. Plafon</Text>
+                  <Text style={styles.plafonValBlue} numberOfLines={1}>Rp {formatRupiah(effectiveMaxPlafon)}</Text>
                 </View>
               </View>
 
-              <View style={styles.tenureBadgeRow}>
-                <AppIcon name={isEligibleTenure ? 'check' : 'lock'} size={11} color={isEligibleTenure ? '#1d72db' : '#dc2626'} />
-                <Text style={[styles.tenureBadgeText, { color: isEligibleTenure ? '#1e40af' : '#b91c1c' }]}>
-                  Masa Kerja: {Math.floor(masaKerjaBulan / 12)} Thn {masaKerjaBulan % 12} Bln {isEligibleTenure ? '(✓ Lolos Syarat Minimal 1 Tahun)' : '(✗ Belum 1 Tahun)'}
-                </Text>
+              <View style={[styles.tenureBadgeRow, isEligibleTenure ? styles.tenureBadgeRowEligible : styles.tenureBadgeRowIneligible]}>
+                <View style={styles.tenureBadgeLeft}>
+                  <View style={[styles.tenureIconBox, isEligibleTenure ? styles.tenureIconBoxEligible : styles.tenureIconBoxIneligible]}>
+                    <AppIcon name={isEligibleTenure ? 'check' : 'lock'} size={11} color="#ffffff" />
+                  </View>
+                  <Text style={styles.tenureLabelText}>
+                    Masa Kerja: <Text style={styles.tenureValueText}>{Math.floor(masaKerjaBulan / 12)} Thn {masaKerjaBulan % 12} Bln</Text>
+                  </Text>
+                </View>
+
+                <View style={[styles.tenureStatusPill, isEligibleTenure ? styles.tenureStatusPillEligible : styles.tenureStatusPillIneligible]}>
+                  <Text style={[styles.tenureStatusPillText, isEligibleTenure ? styles.tenureStatusTextEligible : styles.tenureStatusTextIneligible]}>
+                    {isEligibleTenure ? '✓ Lolos Syarat (Min. 1 Thn)' : '✗ Belum 1 Tahun'}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -564,16 +722,23 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 {activeLoanBreakdown?.isMerged && (
                   <View style={styles.activeMergedSection}>
                     <View style={styles.totalDeductionBlueCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.totalDeductionTagline}>TOTAL POTONG SLIP GAJI</Text>
+                      <View style={styles.totalDeductionLeft}>
+                        <View style={styles.totalDeductionTagBadge}>
+                          <Text style={styles.totalDeductionTagline}>TOTAL POTONG SLIP GAJI</Text>
+                        </View>
                         <Text style={styles.totalDeductionSubinfo}>
-                          Total Utang: Rp {formatRupiah(currentPinjamanAktif)} (Tenor s.d. {currentSisaTenor} Bln)
+                          Total Utang: <Text style={styles.totalDeductionSubBold}>Rp {formatRupiah(currentPinjamanAktif)}</Text>
+                        </Text>
+                        <Text style={styles.totalDeductionTenorInfo}>
+                          Tenor s.d. {currentSisaTenor} Bulan
                         </Text>
                       </View>
-                      <Text style={styles.totalDeductionLargeVal}>
-                        Rp {formatRupiah(currentAngsuran)}
-                        <Text style={styles.totalDeductionUnit}>/bln</Text>
-                      </Text>
+                      <View style={styles.totalDeductionRight}>
+                        <Text style={styles.totalDeductionLargeVal}>
+                          Rp {formatRupiah(currentAngsuran)}
+                        </Text>
+                        <Text style={styles.totalDeductionUnit}>/bulan</Text>
+                      </View>
                     </View>
 
                     {/* Tombol Detail Rincian Angsuran 1, 2, dst */}
@@ -584,7 +749,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                     >
                       <View style={styles.detailAngsuranTriggerLeft}>
                         <View style={styles.detailAngsuranIconBox}>
-                          <AppIcon name="receipt" size={13} color="#1d72db" />
+                          <AppIcon name="receipt" size={15} color="#ffffff" />
                         </View>
                         <View>
                           <Text style={styles.detailAngsuranTriggerTitle}>Rincian Cicilan Pinjaman (1 & 2)</Text>
@@ -598,9 +763,11 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                     </TouchableOpacity>
 
                     <View style={styles.safeLimitBadge}>
-                      <AppIcon name="check" size={12} color="#16a34a" />
+                      <View style={styles.safeLimitIconBox}>
+                        <AppIcon name="check" size={11} color="#ffffff" />
+                      </View>
                       <Text style={styles.safeLimitText}>
-                        Rp {formatRupiah(currentAngsuran)} ≤ Rp {formatRupiah(maxDeductionPerMonth)} (Batas 30% Gaji) — Aman
+                        Rp {formatRupiah(currentAngsuran)} ≤ Rp {formatRupiah(maxDeductionPerMonth)} (Batas 30% Gaji) — <Text style={styles.safeLimitBold}>Aman</Text>
                       </Text>
                     </View>
                   </View>
@@ -627,8 +794,10 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
               <View style={styles.pendingTicketHomeCard}>
                 <View style={styles.pendingTicketTopRow}>
                   <View style={styles.pendingBadgeRow}>
-                    <View style={styles.pulseDot} />
-                    <Text style={styles.pendingBadgeTitle}>Pengajuan Menunggu Persetujuan</Text>
+                    <View style={styles.pendingBadgeIconBox}>
+                      <AppIcon name="receipt" size={15} color="#ffffff" />
+                    </View>
+                    <Text style={styles.pendingBadgeTitle}>Menunggu Persetujuan</Text>
                   </View>
                   <View style={styles.pendingDaysBadge}>
                     <AppIcon name="clock" size={11} color="#1d72db" />
@@ -707,16 +876,23 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 onPress={() => setIsFormVisible(true)}
                 activeOpacity={0.85}
               >
-                <AppIcon name="topup" size={15} color="#1d72db" />
+                <View style={styles.openFormIconBox}>
+                  <AppIcon name="bolt" size={13} color="#ffffff" />
+                </View>
                 <Text style={styles.openFormBtnText}>Ajukan Pinjaman Baru</Text>
               </TouchableOpacity>
             ) : (
               /* FORM PENGAJUAN PINJAMAN SAJA */
               <View style={styles.formContainerCard}>
                 <View style={styles.formCardHeader}>
-                  <View>
-                    <Text style={styles.formTitle}>Formulir Pengajuan Pinjaman</Text>
-                    <Text style={styles.formSub}>Isi data pinjaman anggota koperasi</Text>
+                  <View style={styles.formTitleRow}>
+                    <View style={styles.formTitleIconBox}>
+                      <AppIcon name="receipt" size={15} color="#ffffff" />
+                    </View>
+                    <View>
+                      <Text style={styles.formTitle}>Formulir Pengajuan Pinjaman</Text>
+                      <Text style={styles.formSub}>Isi data pinjaman anggota koperasi</Text>
+                    </View>
                   </View>
                   {(currentPinjamanAktif > 0 || (submittedTicket && submittedTicket.status === 'pending')) && (
                     <TouchableOpacity
@@ -787,7 +963,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 </View>
 
                 {/* Pilihan Tenor Pembayaran */}
-                <Text style={[styles.inputFieldLabel, { marginTop: 12 }]}>
+                <Text style={styles.inputFieldLabel}>
                   Pilih Tenor Pembayaran (Potong Slip Gaji)
                 </Text>
                 <View style={styles.tenorChipsRow}>
@@ -809,7 +985,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 </View>
 
                 {/* Input Tujuan Pinjaman */}
-                <Text style={[styles.inputFieldLabel, { marginTop: 12 }]}>
+                <Text style={styles.inputFieldLabel}>
                   Tujuan / Keperluan Pinjaman
                 </Text>
                 <View style={styles.purposeInputBox}>
@@ -822,7 +998,36 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                   />
                 </View>
 
-                {/* Tombol Lanjut ke Kalkulasi & Verifikasi */}
+                {/* Live Quick Calculation Preview Inside Form */}
+                {parsedAmount > 0 && (
+                  <View style={styles.formLiveCalcCard}>
+                    <View style={styles.formLiveCalcTopRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.formLiveCalcTag}>ESTIMASI ANGSURAN PINJAMAN</Text>
+                        <Text style={styles.formLiveCalcSub}>
+                          Tenor {selectedTenor} Bulan • Jasa 0.8% Flat
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.formLiveCalcAmount}>
+                          Rp {formatRupiah(monthlyTotal)}
+                          <Text style={styles.formLiveCalcUnit}>/bln</Text>
+                        </Text>
+                        <Text style={styles.formLiveCalcNote}>Potong Slip Gaji</Text>
+                      </View>
+                    </View>
+
+                    {currentPinjamanAktif > 0 && (
+                      <View style={styles.formLiveMergedRow}>
+                        <Text style={styles.formLiveMergedText}>
+                          Total Potong Gaji (Lama + Baru): <Text style={styles.boldDark}>Rp {formatRupiah(combinedMonthlyInstallment)}/bln</Text>
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Tombol Lanjut ke Kalkulasi */}
                 <TouchableOpacity
                   style={[
                     styles.primaryActionBtn,
@@ -840,7 +1045,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                       ? 'Melebihi Batas Potong 30% Gaji'
                       : parsedAmount > effectiveMaxPlafon
                       ? 'Melebihi Batas Plafon'
-                      : 'Lanjut ke Rincian & Verifikasi ›'}
+                      : 'Lanjut ke Rincian Kalkulasi ›'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -849,7 +1054,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {/* TAHAP 2: RINCIAN KALKULASI ANGSURAN & PROSES VERIFIKASI (DETAIL + PIN)    */}
+        {/* TAHAP 2: RINCIAN KALKULASI ANGSURAN PINJAMAN (LANGKAH 2 DARI 3)           */}
         {/* ========================================================================= */}
         {stage === 'verification_calculation' && (
           <View style={styles.calcStageContainer}>
@@ -857,13 +1062,13 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
             <View style={styles.stageHeaderCard}>
               <View style={styles.stageStepRow}>
                 <View style={styles.stageStepPill}>
-                  <Text style={styles.stageStepPillText}>Langkah 2 dari 2</Text>
+                  <Text style={styles.stageStepPillText}>Langkah 2 dari 3</Text>
                 </View>
-                <Text style={styles.stageStepHint}>Konfirmasi & Verifikasi</Text>
+                <Text style={styles.stageStepHint}>Kalkulasi & Simulasi Angsuran</Text>
               </View>
               <Text style={styles.stageHeaderTitle}>Rincian Angsuran Pinjaman</Text>
               <Text style={styles.stageHeaderSub}>
-                Periksa rincian kalkulasi pinjaman sebelum otorisasi pengajuan
+                Periksa rincian kalkulasi pinjaman sebelum lanjut ke otorisasi PIN
               </Text>
             </View>
 
@@ -872,10 +1077,15 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
               {/* Top Monthly Highlight */}
               <View style={styles.receiptHeroBanner}>
                 <View style={styles.receiptHeroLeft}>
-                  <Text style={styles.receiptHeroLabel}>ANGSURAN BULANAN BARU</Text>
-                  <Text style={styles.receiptHeroSub}>
-                    Tenor {selectedTenor} Bulan • Jasa 0.8% Flat / bln
-                  </Text>
+                  <View style={styles.receiptHeroIconBox}>
+                    <AppIcon name="receipt" size={13} color="#ffffff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.receiptHeroLabel}>ANGSURAN BULANAN BARU</Text>
+                    <Text style={styles.receiptHeroSub}>
+                      Tenor {selectedTenor} Bulan • Jasa 0.8% Flat / bln
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.receiptHeroRight}>
                   <Text style={styles.receiptHeroAmount}>
@@ -911,7 +1121,10 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 <View style={styles.receiptDashedDivider} />
 
                 <View style={styles.receiptTotalRow}>
-                  <Text style={styles.receiptTotalLabel}>Total Pengembalian Pinjaman</Text>
+                  <View>
+                    <Text style={styles.receiptTotalLabel}>Total Pengembalian Pinjaman</Text>
+                    <Text style={styles.receiptTotalSub}>Pokok Pinjaman + Total Jasa</Text>
+                  </View>
                   <Text style={styles.receiptTotalVal}>Rp {formatRupiah(totalRepayment)}</Text>
                 </View>
               </View>
@@ -920,8 +1133,8 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
               {currentPinjamanAktif > 0 && (
                 <View style={styles.combinedLoanWrapper}>
                   <View style={styles.combinedHeaderRow}>
-                    <View style={styles.combinedIconBadge}>
-                      <AppIcon name="bolt" size={12} color="#1d72db" />
+                    <View style={styles.combinedIconBox}>
+                      <AppIcon name="bolt" size={13} color="#ffffff" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.combinedTitle}>Kalkulasi Gabungan Cicilan</Text>
@@ -932,45 +1145,123 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                   <View style={styles.combinedSplitGrid}>
                     <View style={styles.combinedSplitCard}>
                       <Text style={styles.splitCardLabel}>Cicilan Berjalan</Text>
-                      <Text style={styles.splitCardValDark}>Rp {formatRupiah(currentAngsuran)}/bln</Text>
-                      <Text style={styles.splitCardSub}>Sisa Rp {formatRupiah(currentPinjamanAktif)}</Text>
+                      <Text style={styles.splitCardValDark}>
+                        Rp {formatRupiah(currentAngsuran)}
+                        <Text style={styles.splitCardUnit}>/bln</Text>
+                      </Text>
+                      <Text style={styles.splitCardSub}>Sisa Pokok Rp {formatRupiah(currentPinjamanAktif)}</Text>
                     </View>
-                    <View style={styles.combinedSplitCard}>
-                      <Text style={styles.splitCardLabel}>Pinjaman Baru</Text>
-                      <Text style={styles.splitCardValBlue}>+ Rp {formatRupiah(monthlyTotal)}/bln</Text>
-                      <Text style={styles.splitCardSub}>Pokok Rp {formatRupiah(parsedAmount)}</Text>
+                    <View style={[styles.combinedSplitCard, styles.combinedSplitCardHighlight]}>
+                      <Text style={styles.splitCardLabelBlue}>Pinjaman Baru</Text>
+                      <Text style={styles.splitCardValBlue}>
+                        + Rp {formatRupiah(monthlyTotal)}
+                        <Text style={styles.splitCardUnitBlue}>/bln</Text>
+                      </Text>
+                      <Text style={styles.splitCardSubBlue}>Pokok Rp {formatRupiah(parsedAmount)}</Text>
                     </View>
                   </View>
 
-                  {/* Pure Blue Total Monthly Deduction Card */}
+                  {/* Pure Blue Total Monthly Deduction Card (Gambar 2 Cleaned Up) */}
                   <View style={styles.totalDeductionBlueCard}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.totalDeductionTagline}>TOTAL POTONG SLIP GAJI</Text>
+                    <View style={styles.totalDeductionLeft}>
+                      <View style={styles.totalDeductionTagBadge}>
+                        <Text style={styles.totalDeductionTagline}>TOTAL POTONG SLIP GAJI</Text>
+                      </View>
                       <Text style={styles.totalDeductionSubinfo}>
-                        Total Utang: Rp {formatRupiah(combinedTotalLoan)} (Tenor s.d. {combinedMaxTenor} Bln)
+                        Total Utang: <Text style={styles.totalDeductionSubBold}>Rp {formatRupiah(combinedTotalLoan)}</Text>
+                      </Text>
+                      <Text style={styles.totalDeductionTenorInfo}>
+                        Tenor gabungan s.d. {combinedMaxTenor} Bulan
                       </Text>
                     </View>
-                    <Text style={styles.totalDeductionLargeVal}>
-                      Rp {formatRupiah(combinedMonthlyInstallment)}
-                      <Text style={styles.totalDeductionUnit}>/bln</Text>
-                    </Text>
+                    <View style={styles.totalDeductionRight}>
+                      <Text style={styles.totalDeductionLargeVal}>
+                        Rp {formatRupiah(combinedMonthlyInstallment)}
+                      </Text>
+                      <Text style={styles.totalDeductionUnit}>/bulan</Text>
+                    </View>
                   </View>
 
                   {/* Safe Limit Verification Pill */}
                   <View style={styles.safeLimitBadge}>
-                    <AppIcon name="check" size={12} color="#16a34a" />
+                    <View style={styles.safeLimitIconBox}>
+                      <AppIcon name="check" size={11} color="#ffffff" />
+                    </View>
                     <Text style={styles.safeLimitText}>
-                      Rp {formatRupiah(combinedMonthlyInstallment)} ≤ Rp {formatRupiah(maxDeductionPerMonth)} (Batas 30% Gaji) — Aman
+                      Rp {formatRupiah(combinedMonthlyInstallment)} ≤ Rp {formatRupiah(maxDeductionPerMonth)} (Batas 30% Gaji) — <Text style={styles.safeLimitBold}>Aman</Text>
                     </Text>
                   </View>
                 </View>
               )}
             </View>
 
-            {/* Verification Notice Card */}
+            {/* Action Buttons for Step 2 */}
+            <View style={styles.actionBtnRow}>
+              <TouchableOpacity
+                style={styles.backToFormBtn}
+                onPress={() => setStage('form')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backToFormBtnText}>‹ Ubah Form</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitVerificationBtn}
+                onPress={() => {
+                  setPinInput('');
+                  setStage('authorization_pin');
+                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.submitVerificationBtnText}>Lanjut ke Otorisasi PIN ›</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAHAP 3: VERIFIKASI & OTORISASI PIN (LANGKAH 3 DARI 3)                     */}
+        {/* ========================================================================= */}
+        {stage === 'authorization_pin' && (
+          <View style={styles.calcStageContainer}>
+            {/* Header Stage & Stepper */}
+            <View style={styles.stageHeaderCard}>
+              <View style={styles.stageStepRow}>
+                <View style={styles.stageStepPill}>
+                  <Text style={styles.stageStepPillText}>Langkah 3 dari 3</Text>
+                </View>
+                <Text style={styles.stageStepHint}>Otorisasi & Konfirmasi</Text>
+              </View>
+              <Text style={styles.stageHeaderTitle}>Otorisasi Pengajuan Pinjaman</Text>
+              <Text style={styles.stageHeaderSub}>
+                Selesaikan verifikasi keamanan akun untuk mengirim pengajuan pinjaman
+              </Text>
+            </View>
+
+            {/* Mini Summary Card */}
+            <View style={styles.authSummaryCard}>
+              <View style={styles.authSummaryRow}>
+                <View style={styles.authSummaryCol}>
+                  <Text style={styles.authSummaryLabel}>Nominal Pinjaman</Text>
+                  <Text style={styles.authSummaryVal}>Rp {formatRupiah(parsedAmount)}</Text>
+                  <Text style={styles.authSummarySub}>Tenor {selectedTenor} Bulan</Text>
+                </View>
+                <View style={styles.authSummaryDivider} />
+                <View style={styles.authSummaryCol}>
+                  <Text style={styles.authSummaryLabel}>Total Potong Gaji</Text>
+                  <Text style={styles.authSummaryValBlue}>
+                    Rp {formatRupiah(currentPinjamanAktif > 0 ? combinedMonthlyInstallment : monthlyTotal)}
+                  </Text>
+                  <Text style={styles.authSummarySubBlue}>/bulan (Slip Gaji)</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Verification Notice Card (Gambar 1 - Atas) */}
             <View style={styles.verificationNoticeCard}>
-              <View style={styles.noticeIconCircle}>
-                <AppIcon name="clock" size={18} color="#1d72db" />
+              <View style={styles.noticeIconBox}>
+                <AppIcon name="clock" size={16} color="#ffffff" />
               </View>
               <View style={styles.noticeTextContainer}>
                 <Text style={styles.noticeHeading}>Verifikasi Koperasi & HRD (Maksimal 2 Hari)</Text>
@@ -980,10 +1271,9 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
               </View>
             </View>
 
-            {/* Input PIN Otorisasi Anggota */}
+            {/* Input PIN Otorisasi Anggota (Gambar 1 - Bawah) */}
             <View style={styles.pinSectionCard}>
               <View style={styles.pinHeaderArea}>
-                <AppIcon name="lock" size={14} color="#1d72db" />
                 <Text style={styles.pinSectionTitle}>Otorisasi PIN Transaksi Anggota</Text>
               </View>
               <Text style={styles.pinSectionSubtitle}>
@@ -1026,14 +1316,14 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
               />
             </View>
 
-            {/* Action Buttons */}
+            {/* Action Buttons for Step 3 */}
             <View style={styles.actionBtnRow}>
               <TouchableOpacity
                 style={styles.backToFormBtn}
-                onPress={() => setStage('form')}
+                onPress={() => setStage('verification_calculation')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.backToFormBtnText}>Ubah Form</Text>
+                <Text style={styles.backToFormBtnText}>‹ Rincian Kalkulasi</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1048,7 +1338,7 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.submitVerificationBtnText}>Kirim untuk Verifikasi ›</Text>
+                  <Text style={styles.submitVerificationBtnText}>Kirim Pengajuan Sekarang ›</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1114,7 +1404,10 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
             <View style={styles.pendingBtnStack}>
               <TouchableOpacity
                 style={styles.navKeuanganBtn}
-                onPress={() => setStage('form')}
+                onPress={() => {
+                  setIsFormVisible(false);
+                  setStage('form');
+                }}
                 activeOpacity={0.85}
               >
                 <Text style={styles.navKeuanganBtnText}>Lihat Pengajuan di Halaman Pinjaman</Text>
@@ -1156,7 +1449,9 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleRow}>
-                <AppIcon name="receipt" size={16} color="#1d72db" />
+                <View style={[styles.modalTitleIconBox, { backgroundColor: '#2563eb' }]}>
+                  <AppIcon name="receipt" size={15} color="#ffffff" />
+                </View>
                 <Text style={styles.modalMainTitle}>Rincian Angsuran Pinjaman</Text>
               </View>
               <TouchableOpacity onPress={() => setDetailModalVisible(false)} style={styles.modalCloseBtn}>
@@ -1317,7 +1612,9 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={styles.modalTitleRow}>
-                <AppIcon name="simpanan" size={16} color="#1d72db" />
+                <View style={[styles.modalTitleIconBox, { backgroundColor: '#059669' }]}>
+                  <AppIcon name="simpanan" size={15} color="#ffffff" />
+                </View>
                 <Text style={styles.modalMainTitle}>Bayar / Lunasi Angsuran</Text>
               </View>
               <TouchableOpacity onPress={() => setRepayModalVisible(false)} style={styles.modalCloseBtn}>
@@ -1326,77 +1623,48 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* METODE PEMBAYARAN SELECTOR */}
-              <Text style={styles.inputFieldLabel}>Pilih Metode Pembayaran</Text>
-              <View style={styles.paymentMethodSelector}>
-                {/* Opsi 1: Simpanan Sukarela */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    repayPaymentMethod === 'simpanan' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setRepayPaymentMethod('simpanan')}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.paymentMethodRadioRow}>
-                    <View
-                      style={[
-                        styles.radioCircleOuter,
-                        repayPaymentMethod === 'simpanan' && styles.radioCircleOuterActive,
-                      ]}
-                    >
-                      {repayPaymentMethod === 'simpanan' && <View style={styles.radioCircleInner} />}
-                    </View>
-                    <View style={styles.paymentMethodIconBadge}>
-                      <AppIcon name="wallet" size={13} color="#1d72db" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.paymentMethodTitle}>Potong Simpanan Sukarela</Text>
-                      <Text style={styles.paymentMethodBalance}>
-                        Saldo: Rp {formatRupiah(userBalance)}
-                      </Text>
-                    </View>
+              {/* PAYROLL AUTOMATIC INFO BANNER */}
+              <View style={styles.payrollNoticeBox}>
+                <View style={styles.payrollNoticeHeaderRow}>
+                  <View style={styles.payrollNoticeIconWrap}>
+                    <AppIcon name="receipt" size={16} color="#ffffff" />
                   </View>
-                </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.payrollNoticeTitle}>Angsuran Rutin via Slip Gaji (Payroll)</Text>
+                    <Text style={styles.payrollNoticeBadgeText}>Pemotongan Otomatis Aktif</Text>
+                  </View>
+                </View>
+                <Text style={styles.payrollNoticeDesc}>
+                  Angsuran rutin sebesar <Text style={{ fontWeight: '800', color: '#0f172a' }}>Rp {formatRupiah(currentAngsuran)}/bulan</Text> sudah dipotong otomatis dari slip gaji bulanan Anda.
+                </Text>
+                <Text style={styles.payrollNoticeDescSub}>
+                  Fitur di bawah ini digunakan khusus jika Anda ingin melakukan <Text style={{ fontWeight: '700', color: '#1d72db' }}>pelunasan dipercepat</Text> atau pembayaran angsuran ekstra secara mandiri via QRIS.
+                </Text>
+              </View>
 
-                {/* Opsi 2: Bayar Menggunakan QRIS */}
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodCard,
-                    repayPaymentMethod === 'qris' && styles.paymentMethodCardActive,
-                  ]}
-                  onPress={() => setRepayPaymentMethod('qris')}
-                  activeOpacity={0.8}
-                >
+              {/* METODE PEMBAYARAN: HANYA QRIS */}
+              <Text style={styles.inputFieldLabel}>Metode Pembayaran Mandiri</Text>
+              <View style={styles.paymentMethodSelector}>
+                <View style={[styles.paymentMethodCard, styles.paymentMethodCardActive]}>
                   <View style={styles.paymentMethodRadioRow}>
-                    <View
-                      style={[
-                        styles.radioCircleOuter,
-                        repayPaymentMethod === 'qris' && styles.radioCircleOuterActive,
-                      ]}
-                    >
-                      {repayPaymentMethod === 'qris' && <View style={styles.radioCircleInner} />}
+                    <View style={[styles.radioCircleOuter, styles.radioCircleOuterActive]}>
+                      <View style={styles.radioCircleInner} />
                     </View>
                     <View style={[styles.paymentMethodIconBadge, { backgroundColor: '#fef2f2' }]}>
-                      <AppIcon name="qris" size={13} color="#dc2626" />
+                      <AppIcon name="qris" size={14} color="#dc2626" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.paymentMethodTitle}>Bayar Menggunakan QRIS</Text>
-                        <View style={styles.instantTag}>
-                          <Text style={styles.instantTagText}>Bebas Admin</Text>
-                        </View>
-                      </View>
+                      <Text style={styles.paymentMethodTitle}>Bayar Menggunakan QRIS</Text>
                       <Text style={styles.paymentMethodSub}>
-                        BCA, Mandiri, BRI, GoPay, OVO, Dana, ShopeePay
+                        BCA, Mandiri, BRI, BNI, GoPay, OVO, Dana, ShopeePay
                       </Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               </View>
 
               {/* INPUT NOMINAL PEMBAYARAN */}
-              <Text style={[styles.inputFieldLabel, { marginTop: 12 }]}>Nominal Pembayaran</Text>
+              <Text style={[styles.inputFieldLabel, { marginTop: 12 }]}>Nominal Pelunasan / Pembayaran</Text>
               <View style={styles.inputBoxRow}>
                 <Text style={styles.inputPrefix}>Rp</Text>
                 <TextInput
@@ -1433,40 +1701,19 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {repayPaymentMethod === 'simpanan' && isRepayInsufficient && (
-                <View style={styles.shortageNoticeBox}>
-                  <Text style={styles.shortageNoticeText}>
-                    Simpanan Sukarela Anda kurang Rp {formatRupiah(repayShortage)}.
-                  </Text>
-                  {onNavigateTopUp && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setRepayModalVisible(false);
-                        onNavigateTopUp();
-                      }}
-                    >
-                      <Text style={styles.shortageSetorLink}>+ Setor Simpanan</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
               <TouchableOpacity
                 style={[
                   styles.primaryActionBtn,
-                  ((repayPaymentMethod === 'simpanan' && isRepayInsufficient) || parsedRepay <= 0) &&
-                    styles.primaryActionBtnDisabled,
+                  parsedRepay <= 0 && styles.primaryActionBtnDisabled,
                 ]}
                 onPress={handleInitiateRepay}
-                disabled={(repayPaymentMethod === 'simpanan' && isRepayInsufficient) || parsedRepay <= 0}
+                disabled={parsedRepay <= 0}
                 activeOpacity={0.85}
               >
                 <Text style={styles.primaryActionBtnText}>
                   {parsedRepay <= 0
                     ? 'Masukkan Nominal'
-                    : repayPaymentMethod === 'simpanan'
-                    ? `Lanjut Bayar via Simpanan (Rp ${formatRupiah(parsedRepay)}) ›`
-                    : `Bayar Menggunakan QRIS (Rp ${formatRupiah(parsedRepay)}) ›`}
+                    : `Lanjut Bayar via QRIS (Rp ${formatRupiah(parsedRepay)}) ›`}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -1475,164 +1722,19 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
       </Modal>
 
       {/* ========================================================================= */}
-      {/* MODAL PEMBAYARAN VIA KODE QRIS                                            */}
+      {/* MODAL PEMBAYARAN VIA KODE QRIS STANDAR NASIONAL (RESMI)                  */}
       {/* ========================================================================= */}
-      <Modal
+      <QrisPaymentModal
         visible={qrisModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setQrisModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '92%' }]}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleRow}>
-                <AppIcon name="qris" size={18} color="#dc2626" />
-                <Text style={styles.modalMainTitle}>Pembayaran QRIS Koperasi</Text>
-              </View>
-              <TouchableOpacity onPress={() => setQrisModalVisible(false)} style={styles.modalCloseBtn}>
-                <AppIcon name="x" size={14} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* QRIS Official Styled Box */}
-              <View style={styles.qrisOfficialContainer}>
-                {/* QRIS Header Banner */}
-                <View style={styles.qrisHeaderBanner}>
-                  <View style={styles.qrisLogoRow}>
-                    <Text style={styles.qrisBrandTitle}>QRIS</Text>
-                    <Text style={styles.qrisBrandSub}>QR Code Indonesian Standard</Text>
-                  </View>
-                  <Text style={styles.qrisNmidText}>NMID: ID102026091701</Text>
-                </View>
-
-                {/* Merchant Name */}
-                <View style={styles.qrisMerchantArea}>
-                  <Text style={styles.qrisMerchantName}>KOPERASI PT BAKTI IDOLA TAMA</Text>
-                  <Text style={styles.qrisMerchantCity}>JAKARTA BARAT</Text>
-                </View>
-
-                {/* Real High-Res QRIS Code Generated for YouTube link */}
-                <View style={styles.qrisMatrixWrapper}>
-                  <View style={styles.qrisMatrixContainer}>
-                    <Image
-                      source={{
-                        uri: 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=https%3A%2F%2Fyoutu.be%2FWZYUSaHlGlk%3Fsi%3DWZ1vg0ICvHRfkUtH&margin=8',
-                      }}
-                      style={styles.realQrisImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                </View>
-
-                {/* Tagihan & Timer Box */}
-                <View style={styles.qrisAmountBox}>
-                  <Text style={styles.qrisAmountLabel}>TOTAL PEMBAYARAN ANGSURAN</Text>
-                  <Text style={styles.qrisAmountVal}>Rp {formatRupiah(parsedRepay)}</Text>
-                  <View style={styles.qrisTimerRow}>
-                    <AppIcon name="clock" size={11} color="#dc2626" />
-                    <Text style={styles.qrisTimerText}>Kode berlaku hingga 15:00 menit</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Supported Banks & E-Wallets Info with Real Logos */}
-              <View style={styles.supportedPaymentBox}>
-                <Text style={styles.supportedPaymentLabel}>
-                  Dapat dibayar dari seluruh m-Banking & e-Wallet:
-                </Text>
-                <View style={styles.supportedChannelGrid}>
-                  {supportedQrisChannels.map((ch) => (
-                    <View key={ch.id} style={styles.channelLogoCard}>
-                      <Image source={ch.logo} style={styles.channelLogoImg} resizeMode="contain" />
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <TouchableOpacity
-                style={[styles.primaryActionBtn, isQrisProcessing && styles.primaryActionBtnDisabled]}
-                onPress={handleConfirmQrisRepayment}
-                disabled={isQrisProcessing}
-                activeOpacity={0.85}
-              >
-                {isQrisProcessing ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.primaryActionBtnText}>Saya Sudah Bayar via QRIS ›</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cancelQrisBtn}
-                onPress={() => setQrisModalVisible(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelQrisBtnText}>Batal / Ubah Metode</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ========================================================================= */}
-      {/* MODAL PIN PELUNASAN VIA SIMPANAN SUKARELA                                */}
-      {/* ========================================================================= */}
-      <Modal
-        visible={repayPinModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRepayPinModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalMainTitle}>Konfirmasi PIN Pembayaran</Text>
-              <TouchableOpacity onPress={() => setRepayPinModalVisible(false)} style={styles.modalCloseBtn}>
-                <AppIcon name="x" size={14} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.confirmBox}>
-              <Text style={styles.confirmBoxLabel}>
-                Total Bayar: <Text style={styles.confirmBoxValGreen}>Rp {formatRupiah(parsedRepay)}</Text>
-              </Text>
-              <Text style={styles.confirmBoxSub}>Sumber Dana: Saldo Simpanan Sukarela Anggota</Text>
-            </View>
-
-            <Text style={styles.pinSectionTitle}>Masukkan 6-Digit PIN Transaksi:</Text>
-            <TextInput
-              style={styles.pinInputBox}
-              value={repayPinInput}
-              onChangeText={(v) => setRepayPinInput(v.replace(/[^0-9]/g, '').slice(0, 6))}
-              keyboardType="numeric"
-              secureTextEntry
-              placeholder="••••••"
-              placeholderTextColor="#94a3b8"
-              maxLength={6}
-              autoFocus
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.primaryActionBtn,
-                (repayPinInput.length < 6 || isRepaySubmitting) && styles.primaryActionBtnDisabled,
-              ]}
-              onPress={handleConfirmRepayWithPin}
-              disabled={repayPinInput.length < 6 || isRepaySubmitting}
-              activeOpacity={0.85}
-            >
-              {isRepaySubmitting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.primaryActionBtnText}>Konfirmasi Pembayaran</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setQrisModalVisible(false)}
+        serviceTitle={parsedRepay >= currentPinjamanAktif ? 'Pelunasan Total Pinjaman' : 'Pembayaran Angsuran Pinjaman'}
+        serviceType="pinjaman"
+        targetNumber={`No. Ref: ${submittedTicket?.ticketNo || 'KOP-PINJ-8812'}`}
+        customerName={mockUser.name}
+        amount={parsedRepay}
+        adminFee={0}
+        onPaymentConfirmed={handleConfirmQrisRepayment}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL SUKSES PELUNASAN ANGSURAN                                          */}
@@ -1675,13 +1777,106 @@ export const PinjamanScreen: React.FC<PinjamanScreenProps> = ({
                 </View>
               </View>
             )}
+
+            {/* Tombol Cetak Bukti & Bagikan Bukti */}
+            <View style={styles.receiptActionBtnsRow}>
+              <TouchableOpacity
+                style={styles.btnCetakBukti}
+                onPress={handleDownloadRepayReceipt}
+                activeOpacity={0.85}
+              >
+                <AppIcon name="download" size={14} color="#1d72db" />
+                <Text style={styles.btnCetakBuktiText}>Cetak Bukti</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.btnBagikanBukti}
+                onPress={() => setRepayShareModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <AppIcon name="share" size={14} color="#ffffff" />
+                <Text style={styles.btnBagikanBuktiText}>Bagikan Bukti</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
-              style={styles.primaryActionBtn}
+              style={styles.closeSuccessBtn}
               onPress={() => setRepaySuccessModalVisible(false)}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryActionBtnText}>Selesai & Tutup</Text>
+              <Text style={styles.closeSuccessBtnText}>Selesai & Tutup</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* MODAL BAGIKAN BUKTI PELUNASAN PINJAMAN (SHARE SHEET)                     */}
+      {/* ========================================================================= */}
+      <Modal
+        visible={repayShareModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRepayShareModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.shareSheetContainer}>
+            <View style={styles.shareSheetHeader}>
+              <Text style={styles.shareSheetTitle}>Bagikan Bukti Pembayaran</Text>
+              <TouchableOpacity
+                onPress={() => setRepayShareModalVisible(false)}
+                style={styles.shareCloseBtn}
+                activeOpacity={0.7}
+              >
+                <AppIcon name="x" size={16} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.shareSheetSubtitle}>
+              Pilih aplikasi untuk membagikan bukti pelunasan angsuran resmi:
+            </Text>
+
+            <View style={styles.shareAppRow}>
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleShareRepayWhatsApp}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.shareAppIconBox, { backgroundColor: '#25D366' }]}>
+                  <Image source={waLogo} style={styles.shareAppImg} resizeMode="contain" />
+                </View>
+                <Text style={styles.shareAppName}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleShareRepayTelegram}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.shareAppIconBox, { backgroundColor: '#229ED9' }]}>
+                  <Image source={teleLogo} style={styles.shareAppImg} resizeMode="contain" />
+                </View>
+                <Text style={styles.shareAppName}>Telegram</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareAppItem}
+                onPress={handleCopyRepayText}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.shareAppIconBox, { backgroundColor: '#0284c7' }]}>
+                  <AppIcon name="copy" size={20} color="#ffffff" />
+                </View>
+                <Text style={styles.shareAppName}>Salin Teks</Text>
+              </TouchableOpacity>
+            </View>
+
+            {repayCopiedToast && (
+              <View style={styles.copiedToast}>
+                <AppIcon name="check" size={14} color="#16a34a" />
+                <Text style={styles.copiedToastText}>Teks bukti pembayaran berhasil disalin!</Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -1757,56 +1952,129 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     borderRadius: 10,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
     marginBottom: 8,
   },
   plafonCol: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  plafonColHighlight: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
   },
   plafonDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#e2e8f0',
+    width: 1.2,
+    height: 28,
+    backgroundColor: '#cbd5e1',
     marginHorizontal: 6,
   },
   plafonLabel: {
-    fontSize: 8.5,
-    color: '#64748b',
-    fontWeight: '600',
+    fontSize: 9.5,
+    color: '#475569',
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   plafonVal: {
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 11.5,
+    fontWeight: '800',
     color: '#0f172a',
-    marginTop: 1,
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+  plafonValUnit: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#64748b',
   },
   plafonLabelBlue: {
-    fontSize: 8.5,
-    color: '#1d72db',
-    fontWeight: '700',
+    fontSize: 9.5,
+    color: '#1d4ed8',
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   plafonValBlue: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '900',
     color: '#1d72db',
-    marginTop: 1,
+    marginTop: 2,
+    letterSpacing: -0.2,
   },
   tenureBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 0.8,
-    borderColor: '#bfdbfe',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 2,
   },
-  tenureBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '700',
+  tenureBadgeRowEligible: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+  },
+  tenureBadgeRowIneligible: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecdd3',
+  },
+  tenureBadgeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flex: 1,
+  },
+  tenureIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tenureIconBoxEligible: {
+    backgroundColor: '#16a34a',
+  },
+  tenureIconBoxIneligible: {
+    backgroundColor: '#dc2626',
+  },
+  tenureLabelText: {
+    fontSize: 10.5,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  tenureValueText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  tenureStatusPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  tenureStatusPillEligible: {
+    backgroundColor: '#dcfce7',
+  },
+  tenureStatusPillIneligible: {
+    backgroundColor: '#fee2e2',
+  },
+  tenureStatusPillText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  tenureStatusTextEligible: {
+    color: '#15803d',
+  },
+  tenureStatusTextIneligible: {
+    color: '#b91c1c',
   },
   activeLoanCard: {
     backgroundColor: '#ffffff',
@@ -1923,28 +2191,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    borderWidth: 1.2,
-    borderColor: '#e2e8f0',
-    paddingVertical: 13,
+    borderWidth: 1.5,
+    borderColor: '#bfdbfe',
+    paddingVertical: 14,
     marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  openFormIconBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   openFormBtnText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#1d72db',
   },
   formContainerCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     padding: 14,
     shadowColor: '#000',
@@ -1953,14 +2229,107 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  /* Form Live Calc Preview */
+  formLiveCalcCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: '#bfdbfe',
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  formLiveCalcTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  formLiveCalcTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  formLiveCalcIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formLiveCalcTag: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#1d4ed8',
+  },
+  formLiveCalcSub: {
+    fontSize: 10,
+    color: '#475569',
+    marginTop: 3,
+    fontWeight: '600',
+  },
+  formLiveCalcAmount: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#1d72db',
+  },
+  formLiveCalcUnit: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#3b82f6',
+  },
+  formLiveCalcNote: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  formLiveMergedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#dbeafe',
+  },
+  formLiveMergedIconBox: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formLiveMergedText: {
+    fontSize: 10,
+    color: '#1e3a8a',
+    flex: 1,
+    fontWeight: '500',
+  },
   formCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 8,
+    marginBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+  },
+  formTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  formTitleIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formTitle: {
     fontSize: 13,
@@ -1974,14 +2343,32 @@ const styles = StyleSheet.create({
   },
   hideFormBtn: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   hideFormBtnText: {
     fontSize: 9.5,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#64748b',
+  },
+  inputFieldHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  fieldIconBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.8,
+    borderColor: '#bfdbfe',
   },
   inputFieldLabel: {
     fontSize: 10.5,
@@ -2030,7 +2417,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   presetChip: {
     flex: 1,
@@ -2064,7 +2451,7 @@ const styles = StyleSheet.create({
   tenorChipsRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 6,
+    marginBottom: 10,
   },
   tenorButton: {
     flex: 1,
@@ -2095,7 +2482,7 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   purposeTextInput: {
     fontSize: 12.5,
@@ -2127,96 +2514,123 @@ const styles = StyleSheet.create({
   },
   /* STAGE 2: CALCULATION & VERIFICATION */
   calcStageContainer: {
-    gap: 12,
+    gap: 14,
+    paddingBottom: 20,
   },
   stageHeaderCard: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
-    padding: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   stageStepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   stageStepPill: {
     backgroundColor: '#eff6ff',
     borderWidth: 1,
     borderColor: '#bfdbfe',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   stageStepPillText: {
-    fontSize: 9.5,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     color: '#1d72db',
   },
   stageStepHint: {
-    fontSize: 9.5,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#64748b',
   },
   stageHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     color: '#0f172a',
+    letterSpacing: -0.2,
   },
   stageHeaderSub: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748b',
-    marginTop: 2,
+    marginTop: 3,
+    lineHeight: 15,
   },
   mainReceiptCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   receiptHeroBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1.2,
+    borderBottomColor: '#e2e8f0',
   },
   receiptHeroLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
+  receiptHeroIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   receiptHeroLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: '#64748b',
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    color: '#0f172a',
   },
   receiptHeroSub: {
     fontSize: 10,
-    color: '#475569',
-    marginTop: 2,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
   },
   receiptHeroRight: {
     alignItems: 'flex-end',
   },
   receiptHeroAmount: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: '#1d72db',
+    letterSpacing: -0.4,
   },
   receiptHeroUnit: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3b82f6',
   },
   receiptBreakdownList: {
-    padding: 14,
-    gap: 8,
+    padding: 16,
+    gap: 10,
   },
   receiptItemRow: {
     flexDirection: 'row',
@@ -2224,29 +2638,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   receiptItemLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    fontWeight: '500',
+    fontSize: 11.5,
+    color: '#475569',
+    fontWeight: '600',
   },
   receiptItemVal: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     color: '#0f172a',
   },
   purposeTag: {
     backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
     maxWidth: '55%',
   },
   purposeTagText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#1d72db',
+    color: '#1d4ed8',
   },
   receiptDashedDivider: {
-    height: 1,
+    height: 1.2,
     backgroundColor: '#e2e8f0',
     marginVertical: 4,
   },
@@ -2257,45 +2673,51 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   receiptTotalLabel: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  receiptTotalVal: {
     fontSize: 12.5,
     fontWeight: '800',
+    color: '#0f172a',
+  },
+  receiptTotalSub: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+  receiptTotalVal: {
+    fontSize: 15,
+    fontWeight: '900',
     color: '#1d72db',
+    letterSpacing: -0.3,
   },
   combinedLoanWrapper: {
     backgroundColor: '#f8fafc',
-    borderTopWidth: 1,
+    borderTopWidth: 1.2,
     borderTopColor: '#e2e8f0',
-    padding: 14,
-    gap: 10,
+    padding: 16,
+    gap: 12,
   },
   combinedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  combinedIconBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+  combinedIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#1d72db',
     alignItems: 'center',
     justifyContent: 'center',
   },
   combinedTitle: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0f172a',
   },
   combinedSub: {
-    fontSize: 9.5,
+    fontSize: 10,
     color: '#64748b',
+    marginTop: 1,
   },
   combinedSplitGrid: {
     flexDirection: 'row',
@@ -2305,67 +2727,121 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 10,
-    padding: 9,
-    borderWidth: 1,
+    padding: 10,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
   },
+  combinedSplitCardHighlight: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
   splitCardLabel: {
-    fontSize: 9,
-    color: '#64748b',
-    fontWeight: '600',
+    fontSize: 9.5,
+    color: '#475569',
+    fontWeight: '700',
+  },
+  splitCardLabelBlue: {
+    fontSize: 9.5,
+    color: '#1d4ed8',
+    fontWeight: '800',
   },
   splitCardValDark: {
-    fontSize: 11.5,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '900',
     color: '#0f172a',
     marginTop: 2,
   },
   splitCardValBlue: {
-    fontSize: 11.5,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '900',
     color: '#1d72db',
     marginTop: 2,
   },
-  splitCardSub: {
-    fontSize: 9,
-    color: '#94a3b8',
-    marginTop: 2,
+  splitCardUnit: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#64748b',
   },
-  /* Blue Total Monthly Deduction Card */
+  splitCardUnitBlue: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#3b82f6',
+  },
+  splitCardSub: {
+    fontSize: 9.5,
+    color: '#64748b',
+    marginTop: 3,
+    fontWeight: '500',
+  },
+  splitCardSubBlue: {
+    fontSize: 9.5,
+    color: '#2563eb',
+    marginTop: 3,
+    fontWeight: '600',
+  },
+  /* Blue Total Monthly Deduction Card (Clean 2-Column Layout) */
   totalDeductionBlueCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#1d72db',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     shadowColor: '#1d72db',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
     elevation: 3,
+  },
+  totalDeductionLeft: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  totalDeductionTagBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: 4,
   },
   totalDeductionTagline: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.5,
-    color: '#dbeafe',
+    color: '#ffffff',
   },
   totalDeductionSubinfo: {
-    fontSize: 9.5,
-    color: '#eff6ff',
-    marginTop: 2,
+    fontSize: 10,
+    color: '#e0f2fe',
+    marginTop: 1,
+  },
+  totalDeductionSubBold: {
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  totalDeductionTenorInfo: {
+    fontSize: 9,
+    color: '#bae6fd',
+    marginTop: 1.5,
+    fontWeight: '600',
+  },
+  totalDeductionRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   totalDeductionLargeVal: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
     color: '#ffffff',
+    letterSpacing: -0.3,
   },
   totalDeductionUnit: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#bfdbfe',
+    fontWeight: '700',
+    color: '#bae6fd',
+    marginTop: 1,
   },
   activeMergedSection: {
     marginTop: 12,
@@ -2397,10 +2873,20 @@ const styles = StyleSheet.create({
   pendingBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    flex: 1,
+    paddingRight: 8,
+  },
+  pendingBadgeIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#1d72db',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pendingBadgeTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#1d72db',
   },
@@ -2552,79 +3038,154 @@ const styles = StyleSheet.create({
   safeLimitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 8,
     backgroundColor: '#f0fdf4',
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#bbf7d0',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  safeLimitIconBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   safeLimitText: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#15803d',
     flex: 1,
   },
+  safeLimitBold: {
+    fontWeight: '900',
+    color: '#15803d',
+  },
+  /* Mini Summary for Stage 3 (Authorization PIN) */
+  authSummaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    borderWidth: 1.2,
+    borderColor: '#e2e8f0',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  authSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authSummaryCol: {
+    flex: 1,
+  },
+  authSummaryDivider: {
+    width: 1.2,
+    height: 36,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 10,
+  },
+  authSummaryLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  authSummaryVal: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#0f172a',
+    marginTop: 2,
+  },
+  authSummarySub: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  authSummaryValBlue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#1d72db',
+    marginTop: 2,
+  },
+  authSummarySubBlue: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#2563eb',
+    marginTop: 1,
+  },
   verificationNoticeCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
     borderRadius: 14,
-    padding: 12,
-    gap: 10,
+    padding: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  noticeIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+  noticeIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#1d72db',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   noticeTextContainer: {
     flex: 1,
   },
   noticeHeading: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#0f172a',
   },
   noticeBody: {
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: 11,
+    color: '#475569',
     marginTop: 3,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   pinSectionCard: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: '#e2e8f0',
-    padding: 14,
+    padding: 16,
     alignItems: 'center',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   pinHeaderArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   pinSectionTitle: {
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: '800',
     color: '#0f172a',
+    textAlign: 'center',
   },
   pinSectionSubtitle: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748b',
-    marginBottom: 12,
+    marginBottom: 14,
     textAlign: 'center',
   },
   pinBoxesContainer: {
@@ -2635,8 +3196,8 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   pinBoxItem: {
-    width: 38,
-    height: 44,
+    width: 40,
+    height: 46,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#cbd5e1',
@@ -2662,7 +3223,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1d72db',
   },
   pinInputHidden: {
     position: 'absolute',
@@ -2672,51 +3233,47 @@ const styles = StyleSheet.create({
     bottom: 0,
     opacity: 0.01,
   },
-  pinInputBox: {
-    width: '100%',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
-    borderColor: '#1d72db',
-    borderRadius: 10,
-    paddingVertical: 8,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 8,
-    color: '#0f172a',
-    marginBottom: 12,
-  },
   actionBtnRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 24,
   },
   backToFormBtn: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    paddingVertical: 13,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   backToFormBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#475569',
   },
   submitVerificationBtn: {
     flex: 2,
     backgroundColor: '#1d72db',
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   submitVerificationBtnDisabled: {
     backgroundColor: '#94a3b8',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   submitVerificationBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
     color: '#ffffff',
   },
@@ -3031,12 +3588,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailAngsuranIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#dbeafe',
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#2563eb',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2.5,
+    elevation: 2,
   },
   detailAngsuranTriggerTitle: {
     fontSize: 11.5,
@@ -3418,5 +3980,203 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  receiptActionBtnsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  btnCetakBukti: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1.2,
+    borderColor: '#93c5fd',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  btnCetakBuktiText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1d72db',
+  },
+  btnBagikanBukti: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1d72db',
+    paddingVertical: 10,
+    borderRadius: 10,
+    shadowColor: '#1d72db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  btnBagikanBuktiText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  closeSuccessBtn: {
+    width: '100%',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeSuccessBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  shareSheetContainer: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shareSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  shareSheetTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  shareCloseBtn: {
+    padding: 4,
+  },
+  shareSheetSubtitle: {
+    fontSize: 10.5,
+    color: '#64748b',
+    marginBottom: 16,
+    lineHeight: 15,
+  },
+  shareAppRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  shareAppItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  shareAppIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  shareAppImg: {
+    width: 28,
+    height: 28,
+  },
+  shareAppName: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  copiedToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 6,
+  },
+  copiedToastText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#15803d',
+  },
+  payrollNoticeBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.2,
+    borderColor: '#bfdbfe',
+    marginBottom: 14,
+  },
+  payrollNoticeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  payrollNoticeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  modalTitleIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  payrollNoticeTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#1e40af',
+  },
+  payrollNoticeBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#16a34a',
+    marginTop: 1,
+  },
+  payrollNoticeDesc: {
+    fontSize: 10,
+    color: '#334155',
+    lineHeight: 15,
+    marginBottom: 4,
+  },
+  payrollNoticeDescSub: {
+    fontSize: 9.5,
+    color: '#64748b',
+    lineHeight: 14,
   },
 });

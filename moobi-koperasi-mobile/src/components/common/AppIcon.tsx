@@ -66,7 +66,9 @@ export type IconType =
   | 'pdam'
   | 'bpjs'
   | 'camera'
-  | 'edit';
+  | 'edit'
+  | 'printer'
+  | 'plus';
 
 interface AppIconProps {
   name: IconType;
@@ -406,6 +408,16 @@ export const AppIcon: React.FC<AppIconProps> = ({
           </Svg>
         );
 
+      // 25b. Printer
+      case 'printer':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Polyline points="6 9 6 2 18 2 18 9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Rect x="6" y="14" width="12" height="8" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        );
+
       // 26. Share
       case 'share':
         return (
@@ -669,6 +681,20 @@ export const AppIcon: React.FC<AppIconProps> = ({
               d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
               stroke={color}
               strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        );
+
+      // 55. Plus / Add
+      case 'plus':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M12 5v14M5 12h14"
+              stroke={color}
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
