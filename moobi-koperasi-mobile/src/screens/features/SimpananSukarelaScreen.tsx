@@ -30,25 +30,31 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
 }) => {
   // State for Simpanan Sukarela Payroll Settings
   const [potonganBulanan, setPotonganBulanan] = useState<number>(100000);
-  const [lockedUntilDate, setLockedUntilDate] = useState<string>('21 Maret 2027');
-  const [isLocked, setIsLocked] = useState<boolean>(true); // default true: already set
+  const [lockedUntilDate, setLockedUntilDate] = useState<string>('22 Maret 2027');
+  const [lockedStartDate, setLockedStartDate] = useState<string>('22 September 2026');
+  const [isLocked, setIsLocked] = useState<boolean>(false); // Start unlocked so user can set nominal first, or can be toggled
 
   // Modal States
   const [isSetModalVisible, setIsSetModalVisible] = useState<boolean>(false);
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState<boolean>(false);
-  const [tempSelectedNominal, setTempSelectedNominal] = useState<number>(potonganBulanan);
+  const [isStatusModalVisible, setIsStatusModalVisible] = useState<boolean>(false);
+  const [tempSelectedNominal, setTempSelectedNominal] = useState<number>(potonganBulanan || 100000);
   const [customInputValue, setCustomInputValue] = useState<string>('');
   const [isCustomSelected, setIsCustomSelected] = useState<boolean>(false);
 
   const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID').format(val);
+    return new Intl.NumberFormat('id-ID').format(val || 0);
   };
 
   const handleOpenSetModal = () => {
-    setTempSelectedNominal(potonganBulanan);
+    setTempSelectedNominal(potonganBulanan || 100000);
     setIsCustomSelected(false);
     setCustomInputValue('');
     setIsSetModalVisible(true);
+  };
+
+  const handleOpenStatusModal = () => {
+    setIsStatusModalVisible(true);
   };
 
   const handleSelectPreset = (nominal: number) => {
@@ -91,21 +97,35 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
     setPotonganBulanan(tempSelectedNominal);
     // Calculate new locked date 6 months from now
     const now = new Date();
-    now.setMonth(now.getMonth() + 6);
     const months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    const newDateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    const startDateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    setLockedStartDate(startDateStr);
+
+    const future = new Date();
+    future.setMonth(future.getMonth() + 6);
+    const newDateStr = `${future.getDate()} ${months[future.getMonth()]} ${future.getFullYear()}`;
     setLockedUntilDate(newDateStr);
+    
     setIsLocked(true);
     setIsConfirmModalVisible(false);
 
     Alert.alert(
-      'Pengaturan Berhasil Disimpan! 🎉',
+      'Pengaturan Paten Berhasil Disimpan! 🔒',
       `Potongan Simpanan Sukarela sebesar Rp ${formatRupiah(
         tempSelectedNominal
-      )} / bulan telah aktif.\n\nStatus: Terkunci hingga ${newDateStr} (Komitmen 6 Bulan). Pemotongan dilakukan otomatis via slip gaji payroll.`
+      )} / bulan telah aktif.\n\nStatus: TERKUNCI PATEN selama 6 Bulan (s/d ${newDateStr}). Pemotongan otomatis dilakukan langsung via slip gaji payroll setiap bulannya.`
+    );
+  };
+
+  const handleResetForTesting = () => {
+    setIsLocked(false);
+    setIsStatusModalVisible(false);
+    Alert.alert(
+      'Mode Uji Coba: Kunci Dibuka',
+      'Status penguncian 6 bulan telah di-reset. Anda sekarang dapat mengatur ulang nominal potongan payroll dari awal.'
     );
   };
 
@@ -163,7 +183,7 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
           onPress={() =>
             Alert.alert(
               'Konsep Simpanan Sukarela Otomatis',
-              `Simpanan Sukarela ini bekerja seperti Simpanan Wajib dengan sistem pemotongan otomatis langsung dari slip gaji (payroll) bulanan.\n\nAturan:\n• Nominal potongan diatur dan terkunci selama 6 bulan.\n• Perubahan nominal hanya dapat dilakukan setelah periode 6 bulan berakhir.\n• Saldo simpanan tetap bebas dicairkan kapan saja ke rekening payroll anggota.`
+              `Simpanan Sukarela ini bekerja seperti Simpanan Wajib dengan sistem pemotongan otomatis langsung dari slip gaji (payroll) bulanan.\n\nAturan:\n• Sebelum berlaku, Anda dapat mengatur nominal potongan bulanan terlebih dahulu.\n• Setelah disetujui, nominal dikunci paten selama 6 bulan.\n• Perubahan nominal hanya dapat dilakukan setelah periode 6 bulan berakhir.\n• Saldo simpanan tetap bebas dicairkan kapan saja ke rekening payroll anggota.`
             )
           }
           style={styles.infoBtn}
@@ -188,45 +208,66 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
               <Text style={styles.balanceCardLabel}>Saldo Simpanan Sukarela</Text>
               <Text style={styles.balanceCardSub}>{mockUser.name} • {mockUser.jabatan}</Text>
             </View>
-            <View style={styles.activeBadge}>
-              <View style={styles.activeDot} />
-              <Text style={styles.activeBadgeText}>Payroll Otomatis</Text>
+            <View style={[styles.activeBadge, !isLocked && styles.unlockedBadge]}>
+              <View style={[styles.activeDot, !isLocked && styles.unlockedDot]} />
+              <Text style={[styles.activeBadgeText, !isLocked && styles.unlockedBadgeText]}>
+                {isLocked ? 'Payroll Terkunci' : 'Siap Diatur'}
+              </Text>
             </View>
           </View>
 
           <Text style={styles.balanceAmountText}>Rp {formatRupiah(userBalance)}</Text>
 
           {/* Monthly Fixed Deduction Status Box */}
-          <View style={styles.payrollStatusBox}>
+          <View style={[styles.payrollStatusBox, isLocked ? styles.payrollStatusBoxLocked : styles.payrollStatusBoxUnlocked]}>
             <View style={styles.payrollStatusLeft}>
-              <View style={styles.payrollIconWrap}>
-                <AppIcon name="calendar" size={15} color="#1d72db" />
+              <View style={[styles.payrollIconWrap, isLocked ? { backgroundColor: '#fef3c7' } : { backgroundColor: '#eff6ff' }]}>
+                <AppIcon name={isLocked ? "lock" : "calendar"} size={15} color={isLocked ? "#d97706" : "#1d72db"} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.payrollLabel}>Potongan Payroll Bulanan:</Text>
+                <Text style={styles.payrollLabel}>
+                  {isLocked ? 'Potongan Payroll Aktif (Paten):' : 'Pengaturan Potongan Payroll:'}
+                </Text>
                 <Text style={styles.payrollValue}>
                   Rp {formatRupiah(potonganBulanan)} <Text style={styles.payrollPerMonth}>/ bulan</Text>
                 </Text>
               </View>
             </View>
-            <View style={styles.lockBadgeContainer}>
-              <AppIcon name="lock" size={11} color="#0369a1" />
-              <Text style={styles.lockBadgeText}>Terkunci s/d {lockedUntilDate}</Text>
-            </View>
+
+            {isLocked ? (
+              <View style={styles.lockBadgeContainer}>
+                <AppIcon name="lock" size={11} color="#b45309" />
+                <Text style={styles.lockBadgeText}>Paten Terkunci s/d {lockedUntilDate}</Text>
+              </View>
+            ) : (
+              <View style={styles.readyBadgeContainer}>
+                <AppIcon name="edit" size={11} color="#1d72db" />
+                <Text style={styles.readyBadgeText}>Atur nominal & kunci 6 bulan</Text>
+              </View>
+            )}
           </View>
 
           {/* Action Buttons Row: Atur / Status Potongan & Tarik */}
           <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={styles.actionBtnPrimary}
-              onPress={handleOpenSetModal}
-              activeOpacity={0.85}
-            >
-              <AppIcon name={isLocked ? "lock" : "edit"} size={13} color="#ffffff" />
-              <Text style={styles.actionBtnPrimaryText}>
-                {isLocked ? "Status Potongan" : "Atur Potongan Bulanan"}
-              </Text>
-            </TouchableOpacity>
+            {isLocked ? (
+              <TouchableOpacity
+                style={styles.actionBtnPrimaryLocked}
+                onPress={handleOpenStatusModal}
+                activeOpacity={0.85}
+              >
+                <AppIcon name="lock" size={13} color="#ffffff" />
+                <Text style={styles.actionBtnPrimaryText}>Status Potongan (Terkunci)</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionBtnPrimary}
+                onPress={handleOpenSetModal}
+                activeOpacity={0.85}
+              >
+                <AppIcon name="edit" size={13} color="#ffffff" />
+                <Text style={styles.actionBtnPrimaryText}>Atur Potongan Payroll</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.actionBtnSecondary}
@@ -271,9 +312,9 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
                 <AppIcon name="lock" size={16} color="#ffffff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.featureTitle}>Komitmen Terkunci 6 Bulan</Text>
+                <Text style={styles.featureTitle}>Komitmen Terkunci Paten 6 Bulan</Text>
                 <Text style={styles.featureDesc}>
-                  Nominal yang diset dikunci dan hanya dapat diubah kembali setelah 6 bulan
+                  Nominal yang telah diset dikunci dan hanya dapat diubah kembali setelah 6 bulan
                 </Text>
               </View>
             </View>
@@ -395,7 +436,7 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
       </ScrollView>
 
       {/* ========================================================= */}
-      {/* MODAL: ATUR / STATUS POTONGAN SIMPANAN SUKARELA           */}
+      {/* MODAL 1: PENGATURAN NOMINAL POTONGAN PAYROLL              */}
       {/* ========================================================= */}
       <Modal
         visible={isSetModalVisible}
@@ -407,28 +448,13 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
           <View style={styles.modalCard}>
             {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <View
-                style={[
-                  styles.modalHeaderIconWrap,
-                  isLocked && { backgroundColor: '#fef3c7' },
-                ]}
-              >
-                <AppIcon
-                  name={isLocked ? 'lock' : 'edit'}
-                  size={18}
-                  color={isLocked ? '#d97706' : '#1d72db'}
-                />
+              <View style={styles.modalHeaderIconWrap}>
+                <AppIcon name="edit" size={18} color="#1d72db" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>
-                  {isLocked
-                    ? 'Status Potongan Simpanan Sukarela'
-                    : 'Atur Potongan Simpanan Sukarela'}
-                </Text>
+                <Text style={styles.modalTitle}>Atur Potongan Payroll</Text>
                 <Text style={styles.modalSubtitle}>
-                  {isLocked
-                    ? 'Pengaturan potongan terkunci selama 6 bulan'
-                    : 'Pilih atau masukkan nominal potongan slip gaji bulanan'}
+                  Pilih nominal potongan slip gaji bulanan sebelum dikunci 6 bulan
                 </Text>
               </View>
               <TouchableOpacity
@@ -442,174 +468,117 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
 
             {/* Current Value Pill */}
             <View style={styles.currentValBanner}>
-              <Text style={styles.currentValLabel}>Potongan Aktif Saat Ini:</Text>
-              <Text style={styles.currentValNum}>Rp {formatRupiah(potonganBulanan)} / bulan</Text>
+              <Text style={styles.currentValLabel}>Nominal Terpilih Saat Ini:</Text>
+              <Text style={styles.currentValNum}>
+                Rp {formatRupiah(tempSelectedNominal)} / bulan
+              </Text>
             </View>
 
-            {isLocked ? (
-              /* ===================================================== */
-              /* STATE SUDAH DI-SET: TAMPILAN NOMINAL DIHAPUS & NOTE   */
-              /* ===================================================== */
-              <View style={styles.lockedStateContainer}>
-                {/* Big Locked Notice Box */}
-                <View style={styles.lockedNoticeBox}>
-                  <View style={styles.lockedNoticeIconWrap}>
-                    <AppIcon name="calendar" size={24} color="#d97706" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.lockedNoticeHeading}>
-                      Perubahan hanya dapat dilakukan pada:
-                    </Text>
-                    <Text style={styles.lockedNoticeDateHighlight}>
-                      {lockedUntilDate}
-                    </Text>
-                    <Text style={styles.lockedNoticeDesc}>
-                      Nominal potongan simpanan sukarela via slip gaji telah dikunci selama 6 bulan untuk menjaga konsistensi menabung dan administrasi payroll.
-                    </Text>
-                  </View>
-                </View>
+            {/* Form Pemilihan Nominal */}
+            <Text style={styles.presetSectionLabel}>Pilih Rekomendasi Nominal Potongan:</Text>
 
-                {/* Summary Info Cards */}
-                <View style={styles.lockedSummaryCard}>
-                  <View style={styles.lockedSummaryRow}>
-                    <Text style={styles.lockedSummaryLabel}>Status Penguncian:</Text>
-                    <View style={styles.lockedStatusBadge}>
-                      <AppIcon name="lock" size={10} color="#0369a1" />
-                      <Text style={styles.lockedStatusBadgeText}>Aktif (6 Bulan)</Text>
-                    </View>
-                  </View>
-                  <View style={styles.lockedSummaryDivider} />
-                  <View style={styles.lockedSummaryRow}>
-                    <Text style={styles.lockedSummaryLabel}>Metode Pemotongan:</Text>
-                    <Text style={styles.lockedSummaryValue}>Slip Gaji Bulanan (Payroll)</Text>
-                  </View>
-                  <View style={styles.lockedSummaryDivider} />
-                  <View style={styles.lockedSummaryRow}>
-                    <Text style={styles.lockedSummaryLabel}>Penarikan Dana:</Text>
-                    <Text style={styles.lockedSummaryValueGreen}>Bebas Ditarik Kapan Saja</Text>
-                  </View>
-                </View>
-
-                {/* Single Close / Understand Button */}
-                <TouchableOpacity
-                  style={styles.modalBtnCloseLocked}
-                  onPress={() => setIsSetModalVisible(false)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.modalBtnCloseLockedText}>Tutup & Mengerti</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              /* ===================================================== */
-              /* STATE BELUM DI-SET: FORM PEMILIHAN NOMINAL AKTIF      */
-              /* ===================================================== */
-              <View>
-                <Text style={styles.presetSectionLabel}>Pilih Nominal Potongan Rutin:</Text>
-
-                {/* Nominal Presets Grid */}
-                <View style={styles.presetGrid}>
-                  {PRESET_NOMINALS.map((nom) => {
-                    const isSelected = !isCustomSelected && tempSelectedNominal === nom;
-                    return (
-                      <TouchableOpacity
-                        key={nom}
-                        style={[
-                          styles.presetChip,
-                          isSelected && styles.presetChipSelected,
-                        ]}
-                        onPress={() => handleSelectPreset(nom)}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[
-                            styles.presetChipText,
-                            isSelected && styles.presetChipTextSelected,
-                          ]}
-                        >
-                          Rp {formatRupiah(nom)}
-                        </Text>
-                        {nom === 100000 && (
-                          <View style={[styles.recBadge, isSelected && styles.recBadgeSelected]}>
-                            <Text
-                              style={[
-                                styles.recBadgeText,
-                                isSelected && styles.recBadgeTextSelected,
-                              ]}
-                            >
-                              Rekomendasi
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Custom Input */}
-                <Text style={styles.presetSectionLabel}>Atau Masukkan Nominal Lainnya:</Text>
-                <View
-                  style={[
-                    styles.customInputWrapper,
-                    isCustomSelected && styles.customInputWrapperActive,
-                  ]}
-                >
-                  <Text style={styles.rpPrefix}>Rp</Text>
-                  <TextInput
-                    style={styles.customTextInput}
-                    placeholder="Contoh: 150.000"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="numeric"
-                    value={
-                      customInputValue
-                        ? formatRupiah(parseInt(customInputValue, 10) || 0)
-                        : ''
-                    }
-                    onChangeText={handleCustomInput}
-                    onFocus={() => setIsCustomSelected(true)}
-                  />
-                </View>
-
-                {/* 6-Month Commitment Notice */}
-                <View style={styles.noticeLockBox}>
-                  <AppIcon name="lock" size={15} color="#d97706" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.noticeLockTitle}>Aturan Penguncian 6 Bulan</Text>
-                    <Text style={styles.noticeLockDesc}>
-                      Setelah disimpan, nominal potongan ini akan otomatis dipotong setiap bulan dan{' '}
-                      <Text style={{ fontWeight: '800', color: '#b45309' }}>
-                        tidak dapat diubah selama 6 bulan
-                      </Text>{' '}
-                      ke depan.
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Modal Buttons */}
-                <View style={styles.modalActionRow}>
+            {/* Nominal Presets Grid */}
+            <View style={styles.presetGrid}>
+              {PRESET_NOMINALS.map((nom) => {
+                const isSelected = !isCustomSelected && tempSelectedNominal === nom;
+                return (
                   <TouchableOpacity
-                    style={styles.modalBtnCancel}
-                    onPress={() => setIsSetModalVisible(false)}
+                    key={nom}
+                    style={[
+                      styles.presetChip,
+                      isSelected && styles.presetChipSelected,
+                    ]}
+                    onPress={() => handleSelectPreset(nom)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.modalBtnCancelText}>Batal</Text>
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        isSelected && styles.presetChipTextSelected,
+                      ]}
+                    >
+                      Rp {formatRupiah(nom)}
+                    </Text>
+                    {nom === 100000 && (
+                      <View style={[styles.recBadge, isSelected && styles.recBadgeSelected]}>
+                        <Text
+                          style={[
+                            styles.recBadgeText,
+                            isSelected && styles.recBadgeTextSelected,
+                          ]}
+                        >
+                          Rekomendasi
+                        </Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalBtnSubmit}
-                    onPress={handleProceedToConfirm}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.modalBtnSubmitText}>Lanjutkan Simpan</Text>
-                    <AppIcon name="chevron-right" size={14} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
+                );
+              })}
+            </View>
+
+            {/* Custom Input */}
+            <Text style={styles.presetSectionLabel}>Atau Masukkan Nominal Custom:</Text>
+            <View
+              style={[
+                styles.customInputWrapper,
+                isCustomSelected && styles.customInputWrapperActive,
+              ]}
+            >
+              <Text style={styles.rpPrefix}>Rp</Text>
+              <TextInput
+                style={styles.customTextInput}
+                placeholder="Contoh: 150.000"
+                placeholderTextColor="#94a3b8"
+                keyboardType="numeric"
+                value={
+                  customInputValue
+                    ? formatRupiah(parseInt(customInputValue, 10) || 0)
+                    : ''
+                }
+                onChangeText={handleCustomInput}
+                onFocus={() => setIsCustomSelected(true)}
+              />
+            </View>
+
+            {/* 6-Month Commitment Notice */}
+            <View style={styles.noticeLockBox}>
+              <AppIcon name="lock" size={15} color="#d97706" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.noticeLockTitle}>Aturan Penguncian Paten 6 Bulan</Text>
+                <Text style={styles.noticeLockDesc}>
+                  Setelah disimpan, nominal ini akan dipotong rutin dari slip gaji dan{' '}
+                  <Text style={{ fontWeight: '800', color: '#b45309' }}>
+                    dikunci paten selama 6 bulan penuh
+                  </Text>{' '}
+                  tanpa dapat diubah hingga periode selesai.
+                </Text>
               </View>
-            )}
+            </View>
+
+            {/* Modal Buttons */}
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => setIsSetModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnCancelText}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBtnSubmit}
+                onPress={handleProceedToConfirm}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.modalBtnSubmitText}>Lanjut Kunci 6 Bulan</Text>
+                <AppIcon name="chevron-right" size={14} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
       {/* ========================================================= */}
-      {/* MODAL 2: KONFIRMASI PENGUNCIAN 6 BULAN (CRITICAL STEP)    */}
+      {/* MODAL 2: KONFIRMASI PENGUNCIAN PATEN 6 BULAN              */}
       {/* ========================================================= */}
       <Modal
         visible={isConfirmModalVisible}
@@ -621,18 +590,18 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
           <View style={[styles.modalCard, styles.confirmModalCard]}>
             {/* Warning Lock Header */}
             <View style={styles.confirmHeaderIconWrap}>
-              <AppIcon name="lock" size={32} color="#d97706" />
+              <AppIcon name="lock" size={30} color="#d97706" />
             </View>
 
-            <Text style={styles.confirmTitle}>Konfirmasi & Kunci 6 Bulan</Text>
+            <Text style={styles.confirmTitle}>Konfirmasi Kunci Paten 6 Bulan</Text>
             <Text style={styles.confirmDesc}>
-              Harap periksa kembali sebelum menyetujui. Pengaturan ini akan mengikat selama periode 6 bulan.
+              Harap periksa kembali sebelum menyetujui. Pengaturan ini akan mengikat secara paten selama periode 6 bulan ke depan.
             </Text>
 
             {/* Detail Box */}
             <View style={styles.confirmDetailBox}>
               <View style={styles.confirmDetailRow}>
-                <Text style={styles.confirmDetailLabel}>Nominal Potongan Baru:</Text>
+                <Text style={styles.confirmDetailLabel}>Nominal Potongan Payroll:</Text>
                 <Text style={styles.confirmDetailValueHighlight}>
                   Rp {formatRupiah(tempSelectedNominal)} / bulan
                 </Text>
@@ -640,12 +609,19 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
               <View style={styles.confirmDivider} />
               <View style={styles.confirmDetailRow}>
                 <Text style={styles.confirmDetailLabel}>Mulai Efektif:</Text>
-                <Text style={styles.confirmDetailValue}>Payroll Gaji Bulan Ini</Text>
+                <Text style={styles.confirmDetailValue}>Gaji Payroll Bulan Ini (Tgl 25)</Text>
               </View>
               <View style={styles.confirmDivider} />
               <View style={styles.confirmDetailRow}>
-                <Text style={styles.confirmDetailLabel}>Periode Terkunci:</Text>
-                <Text style={styles.confirmDetailValue}>6 Bulan Penuh</Text>
+                <Text style={styles.confirmDetailLabel}>Masa Penguncian Paten:</Text>
+                <Text style={styles.confirmDetailValueBadge}>6 Bulan Penuh</Text>
+              </View>
+              <View style={styles.confirmDivider} />
+              <View style={styles.confirmDetailRow}>
+                <Text style={styles.confirmDetailLabel}>Total Akumulasi 6 Bulan:</Text>
+                <Text style={styles.confirmDetailValueGreen}>
+                  Rp {formatRupiah(tempSelectedNominal * 6)}
+                </Text>
               </View>
               <View style={styles.confirmDivider} />
               <View style={styles.confirmDetailRow}>
@@ -658,8 +634,8 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
             <View style={styles.warningAlertBox}>
               <AppIcon name="info" size={16} color="#b91c1c" />
               <Text style={styles.warningAlertText}>
-                Dengan menekan tombol setuju di bawah, Anda mengonfirmasi pemotongan fiks dari slip gaji dan memahami bahwa nominal{' '}
-                <Text style={{ fontWeight: '800' }}>TIDAK DAPAT DIUBAH</Text> sampai periode 6 bulan selesai.
+                Dengan menekan tombol setuju, Anda menyetujui pemotongan rutin slip gaji dan memahami bahwa nominal{' '}
+                <Text style={{ fontWeight: '800' }}>TIDAK DAPAT DIUBAH (PATEN)</Text> selama 6 bulan. Saldo tetap bebas ditarik kapan saja.
               </Text>
             </View>
 
@@ -670,7 +646,7 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
               activeOpacity={0.85}
             >
               <AppIcon name="check" size={16} color="#ffffff" />
-              <Text style={styles.confirmAgreeBtnText}>Ya, Setujui & Kunci 6 Bulan</Text>
+              <Text style={styles.confirmAgreeBtnText}>Ya, Setujui & Kunci Paten 6 Bulan</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -681,7 +657,111 @@ export const SimpananSukarelaScreen: React.FC<SimpananSukarelaScreenProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <Text style={styles.confirmBackBtnText}>Batal / Periksa Kembali</Text>
+              <Text style={styles.confirmBackBtnText}>‹ Batal / Ubah Nominal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 3: STATUS POTONGAN PATEN (TERKUNCI 6 BULAN)          */}
+      {/* ========================================================= */}
+      <Modal
+        visible={isStatusModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsStatusModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIconWrap, { backgroundColor: '#fef3c7' }]}>
+                <AppIcon name="lock" size={18} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Status Potongan Simpanan Sukarela</Text>
+                <Text style={styles.modalSubtitle}>Pengaturan potongan terkunci paten selama 6 bulan</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsStatusModalVisible(false)}
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+              >
+                <AppIcon name="x" size={18} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Current Value Banner */}
+            <View style={styles.currentValBannerLocked}>
+              <Text style={styles.currentValLabel}>Potongan Aktif Saat Ini:</Text>
+              <Text style={styles.currentValNumLocked}>
+                Rp {formatRupiah(potonganBulanan)} / bulan
+              </Text>
+            </View>
+
+            {/* Big Locked Notice Box */}
+            <View style={styles.lockedNoticeBox}>
+              <View style={styles.lockedNoticeIconWrap}>
+                <AppIcon name="calendar" size={24} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lockedNoticeHeading}>
+                  Perubahan hanya dapat dilakukan pada:
+                </Text>
+                <Text style={styles.lockedNoticeDateHighlight}>
+                  {lockedUntilDate}
+                </Text>
+                <Text style={styles.lockedNoticeDesc}>
+                  Nominal potongan simpanan sukarela via slip gaji telah dikunci paten selama 6 bulan untuk menjaga konsistensi menabung dan administrasi payroll.
+                </Text>
+              </View>
+            </View>
+
+            {/* Summary Info Cards */}
+            <View style={styles.lockedSummaryCard}>
+              <View style={styles.lockedSummaryRow}>
+                <Text style={styles.lockedSummaryLabel}>Status Penguncian:</Text>
+                <View style={styles.lockedStatusBadge}>
+                  <AppIcon name="lock" size={10} color="#0369a1" />
+                  <Text style={styles.lockedStatusBadgeText}>Aktif Paten (6 Bulan)</Text>
+                </View>
+              </View>
+              <View style={styles.lockedSummaryDivider} />
+              <View style={styles.lockedSummaryRow}>
+                <Text style={styles.lockedSummaryLabel}>Periode Mulai:</Text>
+                <Text style={styles.lockedSummaryValue}>{lockedStartDate}</Text>
+              </View>
+              <View style={styles.lockedSummaryDivider} />
+              <View style={styles.lockedSummaryRow}>
+                <Text style={styles.lockedSummaryLabel}>Metode Pemotongan:</Text>
+                <Text style={styles.lockedSummaryValue}>Slip Gaji Bulanan (Payroll)</Text>
+              </View>
+              <View style={styles.lockedSummaryDivider} />
+              <View style={styles.lockedSummaryRow}>
+                <Text style={styles.lockedSummaryLabel}>Penarikan Dana Saldo:</Text>
+                <Text style={styles.lockedSummaryValueGreen}>Bebas Ditarik Kapan Saja</Text>
+              </View>
+            </View>
+
+            {/* Single Close / Understand Button */}
+            <TouchableOpacity
+              style={styles.modalBtnCloseLocked}
+              onPress={() => setIsStatusModalVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.modalBtnCloseLockedText}>Tutup & Mengerti</Text>
+            </TouchableOpacity>
+
+            {/* Demo / Testing Trigger */}
+            <TouchableOpacity
+              style={styles.demoResetBtn}
+              onPress={handleResetForTesting}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.demoResetBtnText}>
+                ⚙️ Uji Coba / Reset Pengaturan Potongan
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1529,5 +1609,98 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#64748b',
+  },
+  unlockedBadge: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  },
+  unlockedDot: {
+    backgroundColor: '#2563eb',
+  },
+  unlockedBadgeText: {
+    color: '#1d72db',
+  },
+  payrollStatusBoxLocked: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  payrollStatusBoxUnlocked: {
+    backgroundColor: '#ffffff',
+    borderColor: '#bfdbfe',
+  },
+  readyBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    borderColor: '#bfdbfe',
+    alignSelf: 'flex-start',
+  },
+  readyBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#1d72db',
+  },
+  actionBtnPrimaryLocked: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0f4ea3',
+    paddingVertical: 9.5,
+    borderRadius: 10,
+    shadowColor: '#0f4ea3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  currentValBannerLocked: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  currentValNumLocked: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#b45309',
+  },
+  confirmDetailValueBadge: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#0369a1',
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  confirmDetailValueGreen: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#16a34a',
+  },
+  demoResetBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  demoResetBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94a3b8',
+    textDecorationLine: 'underline',
   },
 });
